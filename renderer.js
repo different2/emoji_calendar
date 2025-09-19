@@ -1,6 +1,4 @@
-const { ipcRenderer } = require('electron');
-
-let currentDate = new Date();
+const { ipcRenderer } = require('electron');let currentDate = new Date();
 let selectedDate = null;
 let selectedEmoji = '📅';
 let editingEventId = null;
@@ -28,7 +26,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // IPC event listeners for menu actions
-ipcRenderer.on('new-event', () => {
+window.electronAPI.onNewEvent(() => {
     const today = new Date();
     selectedDate = today;
     
@@ -45,35 +43,41 @@ ipcRenderer.on('new-event', () => {
     openModal();
 });
 
-ipcRenderer.on('prev-month', () => {
+window.electronAPI.onPrevMonth(() => {
     prevMonth();
 });
 
-ipcRenderer.on('next-month', () => {
+window.electronAPI.onNextMonth(() => {
     nextMonth();
 });
 
-ipcRenderer.on('go-to-today', () => {
+window.electronAPI.onGoToToday(() => {
     goToToday();
 });
 
 // Data persistence functions
 async function saveEvents() {
     try {
-        const result = await ipcRenderer.invoke('save-events', events);
+        const result = await window.electronAPI.saveEvents(events);
         if (!result.success) {
             console.error('Failed to save events:', result.error);
+            // Show user-friendly error
+            alert('Failed to save calendar data. Please try again.');
+        } else {
+            console.log('Events saved successfully');
         }
     } catch (error) {
         console.error('Error saving events:', error);
+        alert('Error saving calendar data. Please try again.');
     }
 }
 
 async function loadEvents() {
     try {
-        const result = await ipcRenderer.invoke('load-events');
+        const result = await window.electronAPI.loadEvents();
         if (result.success) {
-            events = result.events;
+            events = result.events || {};
+            console.log('Events loaded successfully');
         } else {
             console.error('Failed to load events:', result.error);
             events = {};
@@ -436,4 +440,4 @@ function prevMonth() {
 function nextMonth() {
     currentDate.setMonth(currentDate.getMonth() + 1);
     renderCalendar();
-}g
+}
