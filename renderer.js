@@ -436,4 +436,4 @@ function prevMonth() {
 function nextMonth() {
     currentDate.setMonth(currentDate.getMonth() + 1);
     renderCalendar();
-}
+}g
