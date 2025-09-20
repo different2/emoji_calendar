@@ -160,8 +160,9 @@ body {
 }
 
 .event-emoji {
-    font-size: 12px;
+    font-size: 14px;
     flex-shrink: 0;
+    margin-right: 2px;
 }
 
 .event-title {

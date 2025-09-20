@@ -4,7 +4,7 @@
 // Initialize global variables
 let currentDate = new Date();
 let selectedDate = null;
-let selectedEmoji = '📅';
+let selectedEmojis = ['📅']; // Changed to array for multiple emojis
 let editingEventId = null;
 let events = {};
 let currentCategory = 'all';
@@ -60,6 +60,10 @@ if (window.electronAPI) {
     window.electronAPI.onGoToToday(() => {
         goToToday();
     });
+
+    window.electronAPI.onClearAllData(() => {
+        clearAllData();
+    });
 }
 
 // Data persistence functions
@@ -88,7 +92,34 @@ async function loadEvents() {
             const result = await window.electronAPI.loadEvents();
             if (result.success) {
                 events = result.events || {};
-                console.log('Events loaded successfully');
+                
+                // Migrate old date key format to new format
+                const migratedEvents = {};
+                for (const [dateKey, eventList] of Object.entries(events)) {
+                    if (dateKey.includes('-') && dateKey.split('-').length === 3 && dateKey.split('-')[1].length === 2) {
+                        // Already in new format
+                        migratedEvents[dateKey] = eventList;
+                    } else {
+                        // Old format: convert to new format
+                        const parts = dateKey.split('-').map(Number);
+                        if (parts.length === 3) {
+                            const year = parts[0];
+                            const month = String(parts[1] + 1).padStart(2, '0'); // Convert from 0-indexed to 1-indexed
+                            const day = String(parts[2]).padStart(2, '0');
+                            const newKey = `${year}-${month}-${day}`;
+                            migratedEvents[newKey] = eventList;
+                            console.log('Migrated event from', dateKey, 'to', newKey);
+                        }
+                    }
+                }
+                
+                events = migratedEvents;
+                console.log('Events loaded successfully:', events);
+                
+                // Save the migrated data
+                if (Object.keys(migratedEvents).length > 0) {
+                    await saveEvents();
+                }
             } else {
                 console.error('Failed to load events:', result.error);
                 events = {};
@@ -197,12 +228,28 @@ function populateEmojiGrid(category, searchTerm = '') {
 }
 
 function selectEmoji(emoji) {
-    selectedEmoji = emoji;
-    document.getElementById('selectedEmojiDisplay').textContent = emoji;
+    // Toggle emoji in the selected list
+    const emojiIndex = selectedEmojis.indexOf(emoji);
+    
+    if (emojiIndex > -1) {
+        // Remove emoji if already selected
+        selectedEmojis.splice(emojiIndex, 1);
+    } else {
+        // Add emoji to selection
+        selectedEmojis.push(emoji);
+    }
+    
+    // Ensure at least one emoji is selected
+    if (selectedEmojis.length === 0) {
+        selectedEmojis = ['📅'];
+    }
+    
+    // Update display
+    document.getElementById('selectedEmojiDisplay').textContent = selectedEmojis.join(' ');
     
     // Update visual selection
     document.querySelectorAll('.emoji-btn').forEach(btn => {
-        btn.classList.toggle('selected', btn.textContent === emoji);
+        btn.classList.toggle('selected', selectedEmojis.includes(btn.textContent));
     });
 }
 
@@ -226,7 +273,10 @@ function goToToday() {
 }
 
 function renderCalendar() {
-    console.log('Rendering calendar for:', currentDate);
+    console.log('=== RENDERING CALENDAR ===');
+    console.log('Current date being rendered:', currentDate);
+    console.log('All events in memory:', events);
+    
     const calendar = document.getElementById('calendar');
     const monthYear = document.getElementById('monthYear');
     
@@ -237,6 +287,8 @@ function renderCalendar() {
     
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
+    
+    console.log('Rendering year:', year, 'month:', month, '(0-indexed)');
     
     monthYear.textContent = new Intl.DateTimeFormat('en-US', { 
         month: 'long', 
@@ -268,6 +320,9 @@ function renderCalendar() {
         const dayElement = document.createElement('div');
         dayElement.className = 'day';
         
+        // Create a snapshot of the current date for this specific day
+        const thisDayDate = new Date(currentDateCopy.getFullYear(), currentDateCopy.getMonth(), currentDateCopy.getDate());
+        
         const dayNumber = document.createElement('div');
         dayNumber.className = 'day-number';
         dayNumber.textContent = currentDateCopy.getDate();
@@ -286,18 +341,35 @@ function renderCalendar() {
         }
         
         const dateKey = formatDateKey(currentDateCopy);
-        if (events[dateKey]) {
-            events[dateKey].forEach(event => {
+        console.log('Checking events for date key:', dateKey, 'Current date copy:', currentDateCopy);
+        
+        if (events[dateKey] && events[dateKey].length > 0) {
+            console.log('Found', events[dateKey].length, 'events for', dateKey, ':', events[dateKey]);
+            
+            events[dateKey].forEach((event, index) => {
+                console.log(`Processing event ${index}:`, event);
+                
                 const eventElement = document.createElement('div');
                 eventElement.className = 'event';
                 
                 const eventEmoji = document.createElement('span');
                 eventEmoji.className = 'event-emoji';
-                eventEmoji.textContent = event.emoji;
+                
+                // Display all emojis (backward compatibility)
+                if (event.emojis && event.emojis.length > 0) {
+                    eventEmoji.textContent = event.emojis.join('');
+                    console.log('Using new emojis format:', event.emojis.join(''));
+                } else if (event.emoji) {
+                    eventEmoji.textContent = event.emoji; // Old format
+                    console.log('Using old emoji format:', event.emoji);
+                } else {
+                    eventEmoji.textContent = '📅'; // Fallback
+                    console.log('Using fallback emoji');
+                }
                 
                 const eventTitle = document.createElement('span');
                 eventTitle.className = 'event-title';
-                let titleText = event.title;
+                let titleText = event.title || 'Untitled';
                 if (event.time) {
                     titleText = `${event.time} ${titleText}`;
                 }
@@ -308,16 +380,25 @@ function renderCalendar() {
                 
                 eventElement.onclick = (e) => {
                     e.stopPropagation();
+                    console.log('Clicked on event:', event);
                     editEvent(dateKey, event.id);
                 };
+                
                 dayEvents.appendChild(eventElement);
+                console.log('Added event to calendar day:', titleText);
             });
+        } else {
+            console.log('No events found for', dateKey);
         }
         
         dayElement.appendChild(dayNumber);
         dayElement.appendChild(dayEvents);
         
-        dayElement.onclick = () => selectDate(currentDateCopy, dayElement);
+        dayElement.onclick = () => {
+            console.log('Day clicked - this day date:', thisDayDate.toDateString());
+            console.log('Day clicked - date key will be:', formatDateKey(thisDayDate));
+            selectDate(thisDayDate, dayElement);
+        };
         
         calendar.appendChild(dayElement);
         currentDateCopy.setDate(currentDateCopy.getDate() + 1);
@@ -327,6 +408,11 @@ function renderCalendar() {
 }
 
 function selectDate(date, element) {
+    console.log('=== DATE SELECTION ===');
+    console.log('Clicked date object:', date);
+    console.log('Date string:', date.toDateString());
+    console.log('Date parts - Year:', date.getFullYear(), 'Month:', date.getMonth(), 'Day:', date.getDate());
+    
     // Remove previous selection
     document.querySelectorAll('.day.selected').forEach(day => {
         day.classList.remove('selected');
@@ -334,7 +420,14 @@ function selectDate(date, element) {
     
     // Add selection to clicked day
     element.classList.add('selected');
-    selectedDate = new Date(date);
+    
+    // Create a clean copy of the date to avoid reference issues
+    selectedDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    console.log('Selected date set to:', selectedDate);
+    console.log('Selected date key will be:', formatDateKey(selectedDate));
+    
+    // Reset editing state for new event
+    editingEventId = null;
     
     // Open modal for new event
     openModal();
@@ -353,8 +446,8 @@ function openModal(isEdit = false) {
         document.getElementById('eventTitle').value = '';
         document.getElementById('eventTime').value = '';
         document.getElementById('eventNotes').value = '';
-        selectedEmoji = '📅';
-        document.getElementById('selectedEmojiDisplay').textContent = selectedEmoji;
+        selectedEmojis = ['📅'];
+        document.getElementById('selectedEmojiDisplay').textContent = selectedEmojis.join(' ');
         document.getElementById('emojiSearch').value = '';
         currentCategory = 'all';
         document.querySelectorAll('.category-btn').forEach(btn => {
@@ -382,6 +475,8 @@ async function saveEvent() {
     }
     
     const dateKey = formatDateKey(selectedDate);
+    console.log('Saving event for date key:', dateKey);
+    console.log('Selected date:', selectedDate);
     
     if (!events[dateKey]) {
         events[dateKey] = [];
@@ -390,11 +485,13 @@ async function saveEvent() {
     const eventData = {
         id: editingEventId || Date.now(),
         title: title,
-        emoji: selectedEmoji,
+        emojis: [...selectedEmojis], // Save array of emojis
         time: time,
         notes: notes,
         timestamp: new Date().toLocaleString()
     };
+    
+    console.log('Event data:', eventData);
     
     if (editingEventId) {
         // Update existing event
@@ -407,6 +504,8 @@ async function saveEvent() {
         events[dateKey].push(eventData);
     }
     
+    console.log('All events after save:', events);
+    
     await saveEvents();
     renderCalendar();
     closeModal();
@@ -416,8 +515,23 @@ function editEvent(dateKey, eventId) {
     const event = events[dateKey].find(e => e.id === eventId);
     if (!event) return;
     
-    // Parse the date key back to a date
-    const [year, month, day] = dateKey.split('-').map(Number);
+    // Parse the date key back to a date - handle both old and new formats
+    let year, month, day;
+    
+    if (dateKey.includes('-') && dateKey.split('-').length === 3) {
+        // New format: YYYY-MM-DD
+        const parts = dateKey.split('-');
+        year = parseInt(parts[0]);
+        month = parseInt(parts[1]) - 1; // Convert back to 0-indexed
+        day = parseInt(parts[2]);
+    } else {
+        // Old format fallback
+        const parts = dateKey.split('-').map(Number);
+        year = parts[0];
+        month = parts[1]; // Already 0-indexed in old format
+        day = parts[2];
+    }
+    
     selectedDate = new Date(year, month, day);
     editingEventId = eventId;
     
@@ -425,14 +539,21 @@ function editEvent(dateKey, eventId) {
     document.getElementById('eventTitle').value = event.title;
     document.getElementById('eventTime').value = event.time || '';
     document.getElementById('eventNotes').value = event.notes || '';
-    selectedEmoji = event.emoji;
-    document.getElementById('selectedEmojiDisplay').textContent = selectedEmoji;
+    
+    // Handle both new array format and old single emoji format
+    if (event.emojis) {
+        selectedEmojis = [...event.emojis];
+    } else if (event.emoji) {
+        selectedEmojis = [event.emoji];
+    }
+    
+    document.getElementById('selectedEmojiDisplay').textContent = selectedEmojis.join(' ');
     
     // Update emoji selection in grid
     populateEmojiGrid(currentCategory);
     setTimeout(() => {
         document.querySelectorAll('.emoji-btn').forEach(btn => {
-            btn.classList.toggle('selected', btn.textContent === selectedEmoji);
+            btn.classList.toggle('selected', selectedEmojis.includes(btn.textContent));
         });
     }, 100);
     
@@ -456,7 +577,11 @@ async function deleteEvent() {
 }
 
 function formatDateKey(date) {
-    return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+    // Use a consistent format: YYYY-MM-DD
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0'); // Month is 0-indexed, so add 1
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
 }
 
 function prevMonth() {
@@ -467,4 +592,13 @@ function prevMonth() {
 function nextMonth() {
     currentDate.setMonth(currentDate.getMonth() + 1);
     renderCalendar();
+}
+
+async function clearAllData() {
+    if (confirm('Are you sure you want to clear all calendar data? This cannot be undone.')) {
+        events = {};
+        await saveEvents();
+        renderCalendar();
+        console.log('All calendar data cleared');
+    }
 }

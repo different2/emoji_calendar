@@ -57,6 +57,13 @@ function createMenu() {
           label: 'About My Calendar',
           role: 'about'
         },
+        {
+          label: 'Clear All Data',
+          accelerator: 'Command+Shift+Delete',
+          click: () => {
+            mainWindow.webContents.send('clear-all-data');
+          }
+        },
         { type: 'separator' },
         {
           label: 'Hide My Calendar',
