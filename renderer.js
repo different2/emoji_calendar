@@ -4,7 +4,7 @@
 // Initialize global variables
 let currentDate = new Date();
 let selectedDate = null;
-let selectedEmojis = ['📅']; // Changed to array for multiple emojis
+let selectedEmojis = []; // Remove default 📅 emoji
 let editingEventId = null;
 let events = {};
 let currentCategory = 'all';
@@ -239,13 +239,8 @@ function selectEmoji(emoji) {
         selectedEmojis.push(emoji);
     }
     
-    // Ensure at least one emoji is selected
-    if (selectedEmojis.length === 0) {
-        selectedEmojis = ['📅'];
-    }
-    
-    // Update display
-    document.getElementById('selectedEmojiDisplay').textContent = selectedEmojis.join(' ');
+    // Update display (no default emoji required)
+    document.getElementById('selectedEmojiDisplay').textContent = selectedEmojis.length > 0 ? selectedEmojis.join(' ') : 'No emojis selected';
     
     // Update visual selection
     document.querySelectorAll('.emoji-btn').forEach(btn => {
@@ -349,43 +344,28 @@ function renderCalendar() {
             events[dateKey].forEach((event, index) => {
                 console.log(`Processing event ${index}:`, event);
                 
-                const eventElement = document.createElement('div');
-                eventElement.className = 'event';
-                
-                const eventEmoji = document.createElement('span');
-                eventEmoji.className = 'event-emoji';
+                // Only show emojis, no text or containers
+                const eventEmojis = document.createElement('span');
+                eventEmojis.className = 'event-emojis-only';
                 
                 // Display all emojis (backward compatibility)
                 if (event.emojis && event.emojis.length > 0) {
-                    eventEmoji.textContent = event.emojis.join('');
+                    eventEmojis.textContent = event.emojis.join('');
                     console.log('Using new emojis format:', event.emojis.join(''));
                 } else if (event.emoji) {
-                    eventEmoji.textContent = event.emoji; // Old format
+                    eventEmojis.textContent = event.emoji; // Old format
                     console.log('Using old emoji format:', event.emoji);
-                } else {
-                    eventEmoji.textContent = '📅'; // Fallback
-                    console.log('Using fallback emoji');
                 }
                 
-                const eventTitle = document.createElement('span');
-                eventTitle.className = 'event-title';
-                let titleText = event.title || 'Untitled';
-                if (event.time) {
-                    titleText = `${event.time} ${titleText}`;
-                }
-                eventTitle.textContent = titleText;
-                
-                eventElement.appendChild(eventEmoji);
-                eventElement.appendChild(eventTitle);
-                
-                eventElement.onclick = (e) => {
+                // Click handler for editing
+                eventEmojis.onclick = (e) => {
                     e.stopPropagation();
                     console.log('Clicked on event:', event);
                     editEvent(dateKey, event.id);
                 };
                 
-                dayEvents.appendChild(eventElement);
-                console.log('Added event to calendar day:', titleText);
+                dayEvents.appendChild(eventEmojis);
+                console.log('Added emoji-only event to calendar');
             });
         } else {
             console.log('No events found for', dateKey);
@@ -446,8 +426,8 @@ function openModal(isEdit = false) {
         document.getElementById('eventTitle').value = '';
         document.getElementById('eventTime').value = '';
         document.getElementById('eventNotes').value = '';
-        selectedEmojis = ['📅'];
-        document.getElementById('selectedEmojiDisplay').textContent = selectedEmojis.join(' ');
+        selectedEmojis = [];
+        document.getElementById('selectedEmojiDisplay').textContent = 'No emojis selected';
         document.getElementById('emojiSearch').value = '';
         currentCategory = 'all';
         document.querySelectorAll('.category-btn').forEach(btn => {
@@ -471,6 +451,11 @@ async function saveEvent() {
     
     if (!title) {
         alert('Please enter an event title');
+        return;
+    }
+    
+    if (selectedEmojis.length === 0) {
+        alert('Please select at least one emoji');
         return;
     }
     

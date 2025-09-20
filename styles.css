@@ -133,41 +133,39 @@ body {
 .day-events {
     flex: 1;
     display: flex;
-    flex-direction: column;
-    gap: 3px;
-    overflow: hidden;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding-top: 5px;
 }
 
-.event {
-    background: rgba(79, 172, 254, 0.2);
-    padding: 3px 6px;
-    border-radius: 8px;
-    font-size: 11px;
-    line-height: 1.2;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+.event-emojis-only {
+    font-size: 20px;
     cursor: pointer;
     transition: all 0.2s ease;
+    display: inline-block;
+    line-height: 1;
+    min-width: 20px;
+    text-align: center;
 }
 
-.event:hover {
-    background: rgba(79, 172, 254, 0.4);
-    transform: scale(1.02);
+.event-emojis-only:hover {
+    transform: scale(1.1);
+    filter: brightness(1.2);
+}
+
+/* Remove old event styles since we're only showing emojis */
+.event {
+    display: none;
 }
 
 .event-emoji {
-    font-size: 14px;
-    flex-shrink: 0;
-    margin-right: 2px;
+    display: none;
 }
 
 .event-title {
-    overflow: hidden;
-    text-overflow: ellipsis;
+    display: none;
 }
 
 .selected .event {
