@@ -28,6 +28,17 @@ document.addEventListener('DOMContentLoaded', function() {
     renderCalendar();
     setupEventListeners();
     populateEmojiGrid('all');
+    
+    // Debug: Check if we have events after loading
+    setTimeout(() => {
+        console.log('=== EVENTS CHECK AFTER LOAD ===');
+        console.log('Total events loaded:', events);
+        console.log('Event count:', Object.keys(events).length);
+        if (Object.keys(events).length > 0) {
+            const totalEvents = Object.values(events).reduce((sum, eventList) => sum + eventList.length, 0);
+            console.log('Total individual events:', totalEvents);
+        }
+    }, 1000);
 });
 
 // IPC event listeners for menu actions (with error handling)
@@ -63,6 +74,35 @@ if (window.electronAPI) {
 
     window.electronAPI.onClearAllData(() => {
         clearAllData();
+    });
+
+    window.electronAPI.onExportCalendar((filePath) => {
+        console.log('Export event received, filePath:', filePath);
+        console.log('filePath type:', typeof filePath);
+        console.log('filePath value:', JSON.stringify(filePath));
+        
+        if (filePath === null) {
+            console.log('Export was canceled by user');
+            return;
+        }
+        
+        exportCalendar(filePath);
+    });
+
+    window.electronAPI.onExportCalendarFallback(() => {
+        console.log('Fallback export event received');
+        fallbackExport();
+    });
+
+    window.electronAPI.onExportCalendarDirect((filePath) => {
+        console.log('=== DIRECT EXPORT EVENT RECEIVED ===');
+        console.log('Direct export event received, filePath:', filePath);
+        exportCalendarDirect(filePath);
+    });
+
+    window.electronAPI.onImportCalendar((filePath) => {
+        console.log('Import event received, filePath:', filePath);
+        importCalendar(filePath);
     });
 }
 
@@ -185,6 +225,11 @@ function setupEventListeners() {
                 case 'ArrowRight':
                     event.preventDefault();
                     nextMonth();
+                    break;
+                case 'e':
+                    event.preventDefault();
+                    console.log('Keyboard shortcut for export triggered');
+                    fallbackExport();
                     break;
             }
         }
@@ -586,4 +631,177 @@ async function clearAllData() {
         renderCalendar();
         console.log('All calendar data cleared');
     }
+}
+
+async function exportCalendar(filePath) {
+    try {
+        console.log('exportCalendar called with filePath:', filePath);
+        console.log('typeof filePath:', typeof filePath);
+        
+        if (!filePath) {
+            console.error('No file path provided for export');
+            alert('No file path selected for export');
+            return;
+        }
+        
+        console.log('Events to export:', events);
+        
+        const result = await window.electronAPI.exportCalendarToFile(filePath, events);
+        
+        if (result.success) {
+            alert(`Calendar exported successfully to:\n${filePath}`);
+            console.log('Calendar exported successfully');
+        } else {
+            alert(`Failed to export calendar: ${result.error}`);
+            console.error('Export failed:', result.error);
+        }
+    } catch (error) {
+        console.error('Error during export:', error);
+        alert(`Error exporting calendar: ${error.message}`);
+    }
+}
+
+async function importCalendar(filePath) {
+    try {
+        console.log('Importing calendar from:', filePath);
+        
+        const result = await window.electronAPI.importCalendarFromFile(filePath);
+        
+        if (result.success) {
+            const importedEvents = result.events;
+            console.log('Imported events:', importedEvents);
+            
+            // Ask user how to handle the import
+            const choice = confirm(
+                'How would you like to import this calendar?\n\n' +
+                'OK = Replace all current events\n' +
+                'Cancel = Merge with current events'
+            );
+            
+            if (choice) {
+                // Replace all events
+                events = importedEvents;
+                console.log('Replaced all events with imported data');
+            } else {
+                // Merge events
+                for (const [dateKey, eventList] of Object.entries(importedEvents)) {
+                    if (!events[dateKey]) {
+                        events[dateKey] = [];
+                    }
+                    events[dateKey].push(...eventList);
+                }
+                console.log('Merged imported events with existing events');
+            }
+            
+            await saveEvents();
+            renderCalendar();
+            
+            const eventCount = Object.values(events).reduce((total, eventList) => total + eventList.length, 0);
+            alert(`Calendar imported successfully!\nTotal events: ${eventCount}`);
+            
+        } else {
+            alert(`Failed to import calendar: ${result.error}`);
+            console.error('Import failed:', result.error);
+        }
+    } catch (error) {
+        console.error('Error during import:', error);
+        alert(`Error importing calendar: ${error.message}`);
+    }
+}
+
+// Fallback export method using browser download
+function fallbackExport() {
+    try {
+        console.log('=== FALLBACK EXPORT STARTED ===');
+        console.log('Current events to export:', events);
+        
+        if (!events || Object.keys(events).length === 0) {
+            console.log('No events to export');
+            alert('No calendar events to export!');
+            return;
+        }
+        
+        const exportData = {
+            exportDate: new Date().toISOString(),
+            version: '1.0',
+            events: events
+        };
+        
+        console.log('Export data prepared:', exportData);
+        
+        const dataStr = JSON.stringify(exportData, null, 2);
+        console.log('JSON string created, length:', dataStr.length);
+        
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+        console.log('Blob created:', dataBlob);
+        
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(dataBlob);
+        link.download = `my-calendar-backup-${new Date().toISOString().split('T')[0]}.json`;
+        
+        console.log('Download link created:', link.href);
+        console.log('Download filename:', link.download);
+        
+        // Make the link visible for debugging
+        link.style.display = 'block';
+        link.textContent = 'Download Calendar Backup';
+        
+        // Trigger download
+        document.body.appendChild(link);
+        console.log('Link added to DOM');
+        
+        link.click();
+        console.log('Download link clicked');
+        
+        // Clean up after a delay
+        setTimeout(() => {
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+            console.log('Download link cleaned up');
+        }, 1000);
+        
+        alert(`Calendar exported successfully!\nFile: ${link.download}\nCheck your Downloads folder.`);
+        console.log('=== FALLBACK EXPORT COMPLETED ===');
+        
+    } catch (error) {
+        console.error('=== FALLBACK EXPORT FAILED ===');
+        console.error('Error details:', error);
+        alert(`Fallback export failed: ${error.message}`);
+    }
+}
+
+// Direct export using Electron's file system
+async function exportCalendarDirect(filePath) {
+    try {
+        console.log('=== DIRECT EXPORT STARTED ===');
+        console.log('Export path:', filePath);
+        console.log('Current events to export:', events);
+        
+        if (!events || Object.keys(events).length === 0) {
+            console.log('No events to export');
+            alert('No calendar events to export!');
+            return;
+        }
+        
+        const result = await window.electronAPI.exportCalendarToFile(filePath, events);
+        
+        if (result.success) {
+            alert(`Calendar exported successfully!\nFile: ${result.filePath || filePath}\nCheck your Downloads folder.`);
+            console.log('Direct export completed successfully');
+        } else {
+            alert(`Failed to export calendar: ${result.error}`);
+            console.error('Direct export failed:', result.error);
+        }
+        
+    } catch (error) {
+        console.error('=== DIRECT EXPORT FAILED ===');
+        console.error('Error details:', error);
+        alert(`Direct export failed: ${error.message}`);
+    }
+}
+
+// Trigger direct export with a predefined path
+function triggerDirectExport() {
+    console.log('Triggering direct export...');
+    fallbackExport(); // Use fallback for now, but the menu export should work with file system
 }
