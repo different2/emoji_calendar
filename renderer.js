@@ -19,52 +19,58 @@ const emojiDatabase = {
 
 // Initialize calendar
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded, initializing calendar...');
     loadEvents();
     renderCalendar();
     setupEventListeners();
     populateEmojiGrid('all');
 });
 
-// IPC event listeners for menu actions
-window.electronAPI.onNewEvent(() => {
-    const today = new Date();
-    selectedDate = today;
-    
-    // Highlight today's date
-    document.querySelectorAll('.day.selected').forEach(day => {
-        day.classList.remove('selected');
+// IPC event listeners for menu actions (with error handling)
+if (window.electronAPI) {
+    window.electronAPI.onNewEvent(() => {
+        const today = new Date();
+        selectedDate = today;
+        
+        // Highlight today's date
+        document.querySelectorAll('.day.selected').forEach(day => {
+            day.classList.remove('selected');
+        });
+        
+        const todayElement = document.querySelector('.day.today');
+        if (todayElement) {
+            todayElement.classList.add('selected');
+        }
+        
+        openModal();
     });
-    
-    const todayElement = document.querySelector('.day.today');
-    if (todayElement) {
-        todayElement.classList.add('selected');
-    }
-    
-    openModal();
-});
 
-window.electronAPI.onPrevMonth(() => {
-    prevMonth();
-});
+    window.electronAPI.onPrevMonth(() => {
+        prevMonth();
+    });
 
-window.electronAPI.onNextMonth(() => {
-    nextMonth();
-});
+    window.electronAPI.onNextMonth(() => {
+        nextMonth();
+    });
 
-window.electronAPI.onGoToToday(() => {
-    goToToday();
-});
+    window.electronAPI.onGoToToday(() => {
+        goToToday();
+    });
+}
 
 // Data persistence functions
 async function saveEvents() {
     try {
-        const result = await window.electronAPI.saveEvents(events);
-        if (!result.success) {
-            console.error('Failed to save events:', result.error);
-            // Show user-friendly error
-            alert('Failed to save calendar data. Please try again.');
+        if (window.electronAPI) {
+            const result = await window.electronAPI.saveEvents(events);
+            if (!result.success) {
+                console.error('Failed to save events:', result.error);
+                alert('Failed to save calendar data. Please try again.');
+            } else {
+                console.log('Events saved successfully');
+            }
         } else {
-            console.log('Events saved successfully');
+            console.warn('electronAPI not available, cannot save events');
         }
     } catch (error) {
         console.error('Error saving events:', error);
@@ -74,12 +80,17 @@ async function saveEvents() {
 
 async function loadEvents() {
     try {
-        const result = await window.electronAPI.loadEvents();
-        if (result.success) {
-            events = result.events || {};
-            console.log('Events loaded successfully');
+        if (window.electronAPI) {
+            const result = await window.electronAPI.loadEvents();
+            if (result.success) {
+                events = result.events || {};
+                console.log('Events loaded successfully');
+            } else {
+                console.error('Failed to load events:', result.error);
+                events = {};
+            }
         } else {
-            console.error('Failed to load events:', result.error);
+            console.warn('electronAPI not available, using empty events');
             events = {};
         }
     } catch (error) {
@@ -207,8 +218,14 @@ function goToToday() {
 }
 
 function renderCalendar() {
+    console.log('Rendering calendar for:', currentDate);
     const calendar = document.getElementById('calendar');
     const monthYear = document.getElementById('monthYear');
+    
+    if (!calendar || !monthYear) {
+        console.error('Calendar elements not found');
+        return;
+    }
     
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
@@ -297,6 +314,8 @@ function renderCalendar() {
         calendar.appendChild(dayElement);
         currentDateCopy.setDate(currentDateCopy.getDate() + 1);
     }
+    
+    console.log('Calendar rendered successfully');
 }
 
 function selectDate(date, element) {

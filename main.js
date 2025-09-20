@@ -32,12 +32,12 @@ function createWindow() {
   // Show window when ready to prevent visual flash
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
+    
+    // Open DevTools in development to see console messages
+    if (process.env.NODE_ENV === 'development') {
+      mainWindow.webContents.openDevTools();
+    }
   });
-
-  // Open DevTools in development
-  if (process.env.NODE_ENV === 'development') {
-    mainWindow.webContents.openDevTools();
-  }
 
   // Handle window closed
   mainWindow.on('closed', () => {
