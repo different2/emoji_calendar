@@ -10,15 +10,375 @@ body {
     min-height: 100vh;
     padding: 0;
     overflow-x: hidden;
+    margin: 0;
+}
+
+.app-container {
+    display: flex;
+    height: 100vh;
+    max-width: 100%;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+}
+
+.calendar-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 600px;
+    border-right: 1px solid #e0e0e0;
+}
+
+.journal-panel {
+    width: 400px;
+    background: #f8f9ff;
+    border-left: 3px solid #4facfe;
+    display: flex;
+    flex-direction: column;
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.journal-panel.hidden {
+    width: 0;
+    border: none;
+}
+
+.journal-header {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+    padding: 20px;
+    text-align: center;
+    position: relative;
+}
+
+.journal-header h2 {
+    margin: 0;
+    font-size: 1.4em;
+    font-weight: 500;
+}
+
+.journal-header .close-panel {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.journal-header .close-panel:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.journal-content {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.add-entry-section {
+    background: #e8f5e8;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 20px;
+    border-left: 4px solid #4CAF50;
+}
+
+.time-input-section {
+    margin-bottom: 15px;
+}
+
+.time-input-section label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 600;
+    color: #333;
+}
+
+.time-input-group {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.time-input-group input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.current-time-btn {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.current-time-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(79, 172, 254, 0.3);
+}
+
+.category-section {
+    margin-bottom: 15px;
+}
+
+.category-section label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #333;
+}
+
+.category-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.category-tag {
+    background: white;
+    border: 2px solid #e0e0e0;
+    padding: 6px 12px;
+    border-radius: 15px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.category-tag:hover {
+    border-color: #4facfe;
+    background: rgba(79, 172, 254, 0.1);
+}
+
+.category-tag.selected {
+    border-color: #4facfe;
+    background: rgba(79, 172, 254, 0.2);
+}
+
+.custom-category input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 12px;
+}
+
+.entry-content-section {
+    margin-bottom: 15px;
+}
+
+.entry-content-section label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 600;
+    color: #333;
+}
+
+.entry-content-section textarea {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    min-height: 60px;
+    resize: vertical;
+}
+
+.entry-actions {
+    text-align: center;
+}
+
+.existing-entries-section {
+    background: white;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 15px;
+    border-left: 4px solid #2196F3;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.entries-list {
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+.log-entry {
+    background: #f8f9ff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 10px;
+    position: relative;
+}
+
+.log-entry-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.log-entry-time {
+    font-weight: bold;
+    color: #2196F3;
+    font-size: 14px;
+}
+
+.log-entry-category {
+    background: rgba(79, 172, 254, 0.2);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    color: #333;
+}
+
+.log-entry-details {
+    font-size: 13px;
+    line-height: 1.4;
+    color: #555;
+    margin-bottom: 5px;
+}
+
+.log-entry-actions {
+    display: flex;
+    gap: 5px;
+    justify-content: flex-end;
+}
+
+.log-entry-btn {
+    background: none;
+    border: 1px solid #ddd;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    cursor: pointer;
+    color: #666;
+}
+
+.log-entry-btn:hover {
+    background: #f0f0f0;
+}
+
+.log-entry-btn.delete {
+    color: #ff6b6b;
+    border-color: #ff6b6b;
+}
+
+.log-entry-btn.delete:hover {
+    background: rgba(255, 107, 107, 0.1);
+}
+
+.no-entries-message {
+    text-align: center;
+    color: #999;
+    font-style: italic;
+    margin: 20px 0;
+}
+
+.stats-section {
+    background: white;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 15px;
+    border-left: 4px solid #FF9800;
+}
+
+.quick-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.stat-item {
+    background: rgba(255, 152, 0, 0.1);
+    padding: 4px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    color: #333;
+}
+
+/* Remove old mood styles */
+.mood-section, .mood-emojis, .quick-emoji-picker, .mood-emoji {
+    display: none;
+}
+
+.journal-actions {
+    padding: 20px;
+    border-top: 1px solid #e0e0e0;
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.btn {
+    padding: 10px 16px;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+}
+
+.btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 5px 15px rgba(79, 172, 254, 0.3);
+}
+
+.btn-secondary {
+    background: #f0f0f0;
+    color: #666;
+}
+
+.btn-secondary:hover {
+    background: #e0e0e0;
+}
+
+.btn-delete {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+    color: white;
+}
+
+.btn-delete:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 5px 15px rgba(255, 107, 107, 0.3);
 }
 
 .container {
-    max-width: 100%;
-    height: 100vh;
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
+    flex: 1;
     display: flex;
     flex-direction: column;
+}
+
+/* Update existing calendar styles */
+.calendar-grid {
+    margin: 20px;
+    flex: 1;
 }
 
 .header {
@@ -443,11 +803,57 @@ body {
     box-shadow: 0 10px 20px rgba(255, 107, 107, 0.3);
 }
 
-.timestamp {
-    font-size: 11px;
-    color: #888;
-    margin-top: 5px;
+.journal-date-display {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 15px;
+    border-radius: 10px;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.journal-date-display h3 {
+    margin: 0;
+    font-size: 1.3em;
+    font-weight: 500;
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 120px;
+    line-height: 1.5;
+}
+
+#journalEntry {
+    min-height: 150px;
+    font-family: Georgia, serif;
+}
+
+#accomplishments, #gratitude, #tomorrowGoals {
+    min-height: 100px;
+}
+
+.journal-metadata {
+    background: #f8f9ff;
+    padding: 10px 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border-left: 4px solid #4facfe;
+}
+
+.journal-metadata small {
+    color: #666;
     font-style: italic;
+}
+
+/* Update modal for better journal experience */
+.modal-content {
+    max-width: 700px;
+}
+
+.modal-body {
+    max-height: 80vh;
+    overflow-y: auto;
 }
 
 /* Responsive design */

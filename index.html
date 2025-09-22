@@ -7,80 +7,103 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>📅 My Calendar</h1>
-            <div class="nav">
-                <button onclick="prevMonth()">← Previous</button>
-                <span class="month-year" id="monthYear"></span>
-                <button onclick="nextMonth()">Next →</button>
-                <button class="today-btn" onclick="goToToday()">Today</button>
-                <button class="today-btn" onclick="triggerDirectExport()">Export</button>
+    <div class="app-container">
+        <!-- Calendar Section -->
+        <div class="calendar-section">
+            <div class="container">
+                <div class="header">
+                    <h1>📅 My Daily Journal</h1>
+                    <div class="nav">
+                        <button onclick="prevMonth()">← Previous</button>
+                        <span class="month-year" id="monthYear"></span>
+                        <button onclick="nextMonth()">Next →</button>
+                        <button class="today-btn" onclick="goToToday()">Today</button>
+                        <button class="today-btn" onclick="triggerDirectExport()">Export</button>
+                    </div>
+                </div>
+
+                <div class="calendar-grid" id="calendar">
+                    <!-- Calendar will be generated here -->
+                </div>
             </div>
         </div>
 
-        <div class="calendar-grid" id="calendar">
-            <!-- Calendar will be generated here -->
-        </div>
-    </div>
-
-    <!-- Modal for adding/editing events -->
-    <div id="eventModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="modalTitle">Add Event</h2>
-                <span class="close">&times;</span>
+        <!-- Journal Panel -->
+        <div class="journal-panel hidden" id="journalPanel">
+            <div class="journal-header">
+                <h2 id="journalPanelTitle">Select a day to start logging</h2>
+                <button class="close-panel" onclick="closeJournalPanel()">×</button>
             </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label for="eventTitle">Event Title:</label>
-                    <input type="text" id="eventTitle" placeholder="Enter event title...">
+            
+            <div class="journal-content" id="journalContent">
+                <div class="journal-date-display">
+                    <h3 id="selectedDateDisplay">No date selected</h3>
                 </div>
 
-                <div class="form-group">
-                    <label for="eventTime">Time:</label>
-                    <div class="time-input-group">
-                        <input type="time" id="eventTime">
-                        <button type="button" class="current-time-btn" onclick="setCurrentTime()">Current Time</button>
-                    </div>
-                </div>
-
-                <div class="form-group emoji-section">
-                    <label>Choose Emojis (click multiple):</label>
-                    <div class="selected-emoji-display">
-                        <span class="emoji" id="selectedEmojiDisplay">No emojis selected</span>
-                        <span>Selected emojis - click multiple emojis to add them!</span>
-                    </div>
+                <!-- Add New Entry Section -->
+                <div class="add-entry-section">
+                    <h4>➕ Add New Entry</h4>
                     
-                    <input type="text" class="emoji-search" placeholder="Search emojis..." id="emojiSearch">
-                    
-                    <div class="emoji-categories">
-                        <button type="button" class="category-btn active" data-category="all">All</button>
-                        <button type="button" class="category-btn" data-category="smileys">😀 Faces</button>
-                        <button type="button" class="category-btn" data-category="people">👤 People</button>
-                        <button type="button" class="category-btn" data-category="nature">🌿 Nature</button>
-                        <button type="button" class="category-btn" data-category="food">🍎 Food</button>
-                        <button type="button" class="category-btn" data-category="activities">⚽ Activities</button>
-                        <button type="button" class="category-btn" data-category="travel">✈️ Travel</button>
-                        <button type="button" class="category-btn" data-category="objects">📱 Objects</button>
-                        <button type="button" class="category-btn" data-category="symbols">❤️ Symbols</button>
+                    <div class="time-input-section">
+                        <label>Time:</label>
+                        <div class="time-input-group">
+                            <input type="time" id="entryTime" placeholder="Enter time...">
+                            <button type="button" class="current-time-btn" onclick="setCurrentTime()">Now</button>
+                        </div>
                     </div>
-                    
-                    <div class="emoji-grid" id="emojiGrid">
-                        <!-- Emojis will be populated here -->
+
+                    <div class="category-section">
+                        <label>Category (optional):</label>
+                        <div class="category-buttons">
+                            <button type="button" class="category-tag" onclick="selectCategory('💊', 'Medication')">💊 Medication</button>
+                            <button type="button" class="category-tag" onclick="selectCategory('🍽️', 'Food/Drink')">🍽️ Food/Drink</button>
+                            <button type="button" class="category-tag" onclick="selectCategory('🚽', 'Bathroom')">🚽 Bathroom</button>
+                            <button type="button" class="category-tag" onclick="selectCategory('😴', 'Sleep')">😴 Sleep</button>
+                            <button type="button" class="category-tag" onclick="selectCategory('🌡️', 'Symptoms')">🌡️ Symptoms</button>
+                            <button type="button" class="category-tag" onclick="selectCategory('📝', 'Note')">📝 Note</button>
+                        </div>
+                        <div class="custom-category">
+                            <input type="text" id="customCategory" placeholder="Or type custom category...">
+                        </div>
+                    </div>
+
+                    <div class="entry-content-section">
+                        <label>Details:</label>
+                        <textarea id="entryDetails" placeholder="What happened? Details, dosage, amount, observations, etc..."></textarea>
+                    </div>
+
+                    <div class="entry-actions">
+                        <button class="btn btn-primary" onclick="addLogEntry()">Add Entry</button>
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="eventNotes">Notes:</label>
-                    <textarea id="eventNotes" placeholder="Add your notes here..."></textarea>
+                <!-- Existing Entries for This Day -->
+                <div class="existing-entries-section">
+                    <h4>📋 Today's Log</h4>
+                    <div id="entriesList" class="entries-list">
+                        <p class="no-entries-message">No entries for this day yet.</p>
+                    </div>
                 </div>
 
-                <div class="button-group">
-                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-                    <button type="button" class="btn btn-delete" id="deleteBtn" onclick="deleteEvent()" style="display: none;">Delete</button>
-                    <button type="button" class="btn btn-primary" onclick="saveEvent()">Save</button>
+                <!-- Quick Stats Section -->
+                <div class="stats-section">
+                    <h4>📊 Quick Summary</h4>
+                    <div id="quickStats" class="quick-stats">
+                        <!-- Will be populated with entry counts -->
+                    </div>
                 </div>
+
+                <!-- Daily Notes Section -->
+                <div class="journal-section">
+                    <h4>💭 Daily Notes</h4>
+                    <textarea id="dailyNotes" placeholder="Overall notes for the day, observations, how she's feeling, etc..."></textarea>
+                </div>
+            </div>
+
+            <div class="journal-actions">
+                <button class="btn btn-delete" id="deleteJournalBtn" onclick="deleteJournalEntry()" style="display: none;">Delete All</button>
+                <button class="btn btn-secondary" onclick="clearJournalForm()">Clear Form</button>
+                <button class="btn btn-primary" onclick="saveJournalEntry()">Save Daily Notes</button>
             </div>
         </div>
     </div>

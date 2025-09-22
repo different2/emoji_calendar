@@ -1,13 +1,12 @@
-// My Calendar App - Renderer Process
+// My Health Log Calendar - Renderer Process
 // No Node.js imports allowed in renderer with contextIsolation
 
-// Initialize global variables
+// Initialize global variables first
 let currentDate = new Date();
 let selectedDate = null;
-let selectedEmojis = []; // Remove default 📅 emoji
-let editingEventId = null;
-let events = {};
-let currentCategory = 'all';
+let selectedCategory = '';
+let editingJournalDate = null;
+let journalEntries = {};
 
 // Comprehensive emoji database organized by categories
 const emojiDatabase = {
@@ -23,197 +22,22 @@ const emojiDatabase = {
 
 // Initialize calendar when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM loaded, initializing calendar...');
-    loadEvents();
+    console.log('DOM loaded, initializing health log calendar...');
+    loadJournalEntries();
     renderCalendar();
     setupEventListeners();
-    populateEmojiGrid('all');
     
-    // Debug: Check if we have events after loading
     setTimeout(() => {
-        console.log('=== EVENTS CHECK AFTER LOAD ===');
-        console.log('Total events loaded:', events);
-        console.log('Event count:', Object.keys(events).length);
-        if (Object.keys(events).length > 0) {
-            const totalEvents = Object.values(events).reduce((sum, eventList) => sum + eventList.length, 0);
-            console.log('Total individual events:', totalEvents);
-        }
+        console.log('=== JOURNAL ENTRIES CHECK AFTER LOAD ===');
+        console.log('Total journal entries loaded:', journalEntries);
+        console.log('Entry count:', Object.keys(journalEntries).length);
     }, 1000);
 });
 
-// IPC event listeners for menu actions (with error handling)
-if (window.electronAPI) {
-    window.electronAPI.onNewEvent(() => {
-        const today = new Date();
-        selectedDate = today;
-        
-        // Highlight today's date
-        document.querySelectorAll('.day.selected').forEach(day => {
-            day.classList.remove('selected');
-        });
-        
-        const todayElement = document.querySelector('.day.today');
-        if (todayElement) {
-            todayElement.classList.add('selected');
-        }
-        
-        openModal();
-    });
-
-    window.electronAPI.onPrevMonth(() => {
-        prevMonth();
-    });
-
-    window.electronAPI.onNextMonth(() => {
-        nextMonth();
-    });
-
-    window.electronAPI.onGoToToday(() => {
-        goToToday();
-    });
-
-    window.electronAPI.onClearAllData(() => {
-        clearAllData();
-    });
-
-    window.electronAPI.onExportCalendar((filePath) => {
-        console.log('Export event received, filePath:', filePath);
-        console.log('filePath type:', typeof filePath);
-        console.log('filePath value:', JSON.stringify(filePath));
-        
-        if (filePath === null) {
-            console.log('Export was canceled by user');
-            return;
-        }
-        
-        exportCalendar(filePath);
-    });
-
-    window.electronAPI.onExportCalendarFallback(() => {
-        console.log('Fallback export event received');
-        fallbackExport();
-    });
-
-    window.electronAPI.onExportCalendarDirect((filePath) => {
-        console.log('=== DIRECT EXPORT EVENT RECEIVED ===');
-        console.log('Direct export event received, filePath:', filePath);
-        exportCalendarDirect(filePath);
-    });
-
-    window.electronAPI.onImportCalendar((filePath) => {
-        console.log('Import event received, filePath:', filePath);
-        importCalendar(filePath);
-    });
-}
-
-// Data persistence functions
-async function saveEvents() {
-    try {
-        if (window.electronAPI) {
-            const result = await window.electronAPI.saveEvents(events);
-            if (!result.success) {
-                console.error('Failed to save events:', result.error);
-                alert('Failed to save calendar data. Please try again.');
-            } else {
-                console.log('Events saved successfully');
-            }
-        } else {
-            console.warn('electronAPI not available, cannot save events');
-        }
-    } catch (error) {
-        console.error('Error saving events:', error);
-        alert('Error saving calendar data. Please try again.');
-    }
-}
-
-async function loadEvents() {
-    try {
-        if (window.electronAPI) {
-            const result = await window.electronAPI.loadEvents();
-            if (result.success) {
-                events = result.events || {};
-                
-                // Migrate old date key format to new format
-                const migratedEvents = {};
-                for (const [dateKey, eventList] of Object.entries(events)) {
-                    if (dateKey.includes('-') && dateKey.split('-').length === 3 && dateKey.split('-')[1].length === 2) {
-                        // Already in new format
-                        migratedEvents[dateKey] = eventList;
-                    } else {
-                        // Old format: convert to new format
-                        const parts = dateKey.split('-').map(Number);
-                        if (parts.length === 3) {
-                            const year = parts[0];
-                            const month = String(parts[1] + 1).padStart(2, '0'); // Convert from 0-indexed to 1-indexed
-                            const day = String(parts[2]).padStart(2, '0');
-                            const newKey = `${year}-${month}-${day}`;
-                            migratedEvents[newKey] = eventList;
-                            console.log('Migrated event from', dateKey, 'to', newKey);
-                        }
-                    }
-                }
-                
-                events = migratedEvents;
-                console.log('Events loaded successfully:', events);
-                
-                // Save the migrated data
-                if (Object.keys(migratedEvents).length > 0) {
-                    await saveEvents();
-                }
-            } else {
-                console.error('Failed to load events:', result.error);
-                events = {};
-            }
-        } else {
-            console.warn('electronAPI not available, using empty events');
-            events = {};
-        }
-    } catch (error) {
-        console.error('Error loading events:', error);
-        events = {};
-    }
-}
-
 function setupEventListeners() {
-    // Close modal when clicking outside or on close button
-    const modal = document.getElementById('eventModal');
-    const closeBtn = document.querySelector('.close');
-    
-    closeBtn.onclick = closeModal;
-    window.onclick = function(event) {
-        if (event.target === modal) {
-            closeModal();
-        }
-    };
-
-    // Category buttons
-    document.querySelectorAll('.category-btn').forEach(btn => {
-        btn.onclick = function() {
-            document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
-            this.classList.add('active');
-            currentCategory = this.dataset.category;
-            populateEmojiGrid(currentCategory);
-        };
-    });
-
-    // Emoji search
-    document.getElementById('emojiSearch').addEventListener('input', function() {
-        const searchTerm = this.value.toLowerCase();
-        populateEmojiGrid(currentCategory, searchTerm);
-    });
-
-    // Keyboard shortcuts
     document.addEventListener('keydown', function(event) {
         if (event.metaKey || event.ctrlKey) {
             switch(event.key) {
-                case 'n':
-                    event.preventDefault();
-                    if (window.electronAPI) {
-                        const today = new Date();
-                        selectedDate = today;
-                        openModal();
-                    }
-                    break;
                 case 't':
                     event.preventDefault();
                     goToToday();
@@ -234,88 +58,337 @@ function setupEventListeners() {
             }
         }
         
-        if (event.key === 'Escape' && document.getElementById('eventModal').style.display === 'block') {
-            closeModal();
+        if (event.key === 'Escape') {
+            closeJournalPanel();
         }
     });
 }
 
-function populateEmojiGrid(category, searchTerm = '') {
-    const emojiGrid = document.getElementById('emojiGrid');
-    emojiGrid.innerHTML = '';
+function selectDate(date, element) {
+    console.log('=== DATE SELECTION ===');
+    console.log('Clicked date object:', date);
+    console.log('Date string:', date.toDateString());
     
-    let emojisToShow = [];
-    
-    if (category === 'all') {
-        emojisToShow = Object.values(emojiDatabase).flat();
-    } else {
-        emojisToShow = emojiDatabase[category] || [];
-    }
-    
-    // Filter by search term if provided
-    if (searchTerm) {
-        // For now, just show all emojis - you could add emoji names/descriptions for better search
-        emojisToShow = emojisToShow.filter(emoji => {
-            return true; // Placeholder for search functionality
-        });
-    }
-    
-    emojisToShow.forEach(emoji => {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'emoji-btn';
-        btn.textContent = emoji;
-        btn.onclick = function() {
-            selectEmoji(emoji);
-        };
-        emojiGrid.appendChild(btn);
+    document.querySelectorAll('.day.selected').forEach(day => {
+        day.classList.remove('selected');
     });
+    
+    element.classList.add('selected');
+    selectedDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    console.log('Selected date set to:', selectedDate);
+    
+    openJournalPanel();
 }
 
-function selectEmoji(emoji) {
-    // Toggle emoji in the selected list
-    const emojiIndex = selectedEmojis.indexOf(emoji);
+function openJournalPanel() {
+    const panel = document.getElementById('journalPanel');
+    const title = document.getElementById('journalPanelTitle');
+    const dateDisplay = document.getElementById('selectedDateDisplay');
+    const deleteBtn = document.getElementById('deleteJournalBtn');
     
-    if (emojiIndex > -1) {
-        // Remove emoji if already selected
-        selectedEmojis.splice(emojiIndex, 1);
+    panel.classList.remove('hidden');
+    
+    const options = { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+    };
+    dateDisplay.textContent = selectedDate.toLocaleDateString('en-US', options);
+    
+    const dateKey = formatDateKey(selectedDate);
+    const existingEntry = journalEntries[dateKey];
+    
+    if (existingEntry) {
+        title.textContent = 'Health Log';
+        deleteBtn.style.display = 'inline-block';
+        loadJournalIntoPanel(existingEntry);
+        editingJournalDate = dateKey;
     } else {
-        // Add emoji to selection
-        selectedEmojis.push(emoji);
+        title.textContent = 'Health Log';
+        deleteBtn.style.display = 'none';
+        clearJournalForm();
+        editingJournalDate = null;
     }
     
-    // Update display (no default emoji required)
-    document.getElementById('selectedEmojiDisplay').textContent = selectedEmojis.length > 0 ? selectedEmojis.join(' ') : 'No emojis selected';
+    refreshEntriesList();
+    updateQuickStats();
+}
+
+function closeJournalPanel() {
+    const panel = document.getElementById('journalPanel');
+    panel.classList.add('hidden');
     
-    // Update visual selection
-    document.querySelectorAll('.emoji-btn').forEach(btn => {
-        btn.classList.toggle('selected', selectedEmojis.includes(btn.textContent));
+    document.querySelectorAll('.day.selected').forEach(day => {
+        day.classList.remove('selected');
     });
+    
+    selectedDate = null;
+    editingJournalDate = null;
 }
 
 function setCurrentTime() {
     const now = new Date();
     const timeString = now.toTimeString().slice(0, 5);
-    document.getElementById('eventTime').value = timeString;
+    document.getElementById('entryTime').value = timeString;
 }
 
-function goToToday() {
-    currentDate = new Date();
+function selectCategory(emoji, categoryName) {
+    selectedCategory = `${emoji} ${categoryName}`;
+    
+    document.querySelectorAll('.category-tag').forEach(tag => {
+        tag.classList.remove('selected');
+    });
+    event.target.classList.add('selected');
+    
+    document.getElementById('customCategory').value = '';
+}
+
+function addLogEntry() {
+    const time = document.getElementById('entryTime').value;
+    const details = document.getElementById('entryDetails').value.trim();
+    const customCategory = document.getElementById('customCategory').value.trim();
+    
+    if (!time || !details) {
+        alert('Please enter both time and details for the log entry');
+        return;
+    }
+    
+    let category = customCategory || selectedCategory || '📝 Note';
+    const dateKey = formatDateKey(selectedDate);
+    
+    if (!journalEntries[dateKey]) {
+        journalEntries[dateKey] = {
+            date: selectedDate.toISOString(),
+            logEntries: [],
+            dailyNotes: '',
+            timestamp: new Date().toLocaleString(),
+            lastModified: new Date().toISOString()
+        };
+    }
+    
+    const logEntry = {
+        id: Date.now(),
+        time: time,
+        category: category,
+        details: details,
+        timestamp: new Date().toLocaleString()
+    };
+    
+    journalEntries[dateKey].logEntries.push(logEntry);
+    
+    saveJournalEntries();
+    renderCalendar();
+    refreshEntriesList();
+    updateQuickStats();
+    
+    document.getElementById('entryTime').value = '';
+    document.getElementById('entryDetails').value = '';
+    document.getElementById('customCategory').value = '';
+    document.querySelectorAll('.category-tag').forEach(tag => {
+        tag.classList.remove('selected');
+    });
+    selectedCategory = '';
+    
+    const addBtn = event.target;
+    const originalText = addBtn.textContent;
+    addBtn.textContent = 'Added ✓';
+    addBtn.style.background = '#4CAF50';
+    
+    setTimeout(() => {
+        addBtn.textContent = originalText;
+        addBtn.style.background = '';
+    }, 1500);
+}
+
+function refreshEntriesList() {
+    const entriesList = document.getElementById('entriesList');
+    const dateKey = formatDateKey(selectedDate);
+    const dayData = journalEntries[dateKey];
+    
+    if (!dayData || !dayData.logEntries || dayData.logEntries.length === 0) {
+        entriesList.innerHTML = '<p class="no-entries-message">No entries for this day yet.</p>';
+        return;
+    }
+    
+    const sortedEntries = [...dayData.logEntries].sort((a, b) => {
+        return a.time.localeCompare(b.time);
+    });
+    
+    entriesList.innerHTML = '';
+    
+    sortedEntries.forEach(entry => {
+        const entryDiv = document.createElement('div');
+        entryDiv.className = 'log-entry';
+        
+        entryDiv.innerHTML = `
+            <div class="log-entry-header">
+                <span class="log-entry-time">${entry.time}</span>
+                <span class="log-entry-category">${entry.category}</span>
+            </div>
+            <div class="log-entry-details">${entry.details}</div>
+            <div class="log-entry-actions">
+                <button class="log-entry-btn delete" onclick="deleteLogEntry(${entry.id})">Delete</button>
+            </div>
+        `;
+        
+        entriesList.appendChild(entryDiv);
+    });
+}
+
+function deleteLogEntry(entryId) {
+    if (!confirm('Delete this log entry?')) return;
+    
+    const dateKey = formatDateKey(selectedDate);
+    const dayData = journalEntries[dateKey];
+    
+    if (dayData && dayData.logEntries) {
+        dayData.logEntries = dayData.logEntries.filter(entry => entry.id !== entryId);
+        saveJournalEntries();
+        renderCalendar();
+        refreshEntriesList();
+        updateQuickStats();
+    }
+}
+
+function updateQuickStats() {
+    const quickStats = document.getElementById('quickStats');
+    const dateKey = formatDateKey(selectedDate);
+    const dayData = journalEntries[dateKey];
+    
+    if (!dayData || !dayData.logEntries || dayData.logEntries.length === 0) {
+        quickStats.innerHTML = '<span class="stat-item">No entries today</span>';
+        return;
+    }
+    
+    const categoryCount = {};
+    dayData.logEntries.forEach(entry => {
+        const category = entry.category;
+        categoryCount[category] = (categoryCount[category] || 0) + 1;
+    });
+    
+    quickStats.innerHTML = '';
+    Object.entries(categoryCount).forEach(([category, count]) => {
+        const statItem = document.createElement('span');
+        statItem.className = 'stat-item';
+        statItem.textContent = `${category}: ${count}`;
+        quickStats.appendChild(statItem);
+    });
+}
+
+function loadJournalIntoPanel(entry) {
+    document.getElementById('dailyNotes').value = entry.dailyNotes || '';
+    refreshEntriesList();
+    updateQuickStats();
+}
+
+function clearJournalForm() {
+    document.getElementById('entryTime').value = '';
+    document.getElementById('entryDetails').value = '';
+    document.getElementById('customCategory').value = '';
+    document.getElementById('dailyNotes').value = '';
+    
+    document.querySelectorAll('.category-tag').forEach(tag => {
+        tag.classList.remove('selected');
+    });
+    selectedCategory = '';
+    
+    refreshEntriesList();
+    updateQuickStats();
+}
+
+async function saveJournalEntry() {
+    const dailyNotes = document.getElementById('dailyNotes').value.trim();
+    const dateKey = formatDateKey(selectedDate);
+    
+    if (!journalEntries[dateKey]) {
+        journalEntries[dateKey] = {
+            date: selectedDate.toISOString(),
+            logEntries: [],
+            dailyNotes: '',
+            timestamp: new Date().toLocaleString(),
+            lastModified: new Date().toISOString()
+        };
+    }
+    
+    journalEntries[dateKey].dailyNotes = dailyNotes;
+    journalEntries[dateKey].lastModified = new Date().toISOString();
+    
+    await saveJournalEntries();
     renderCalendar();
     
-    // Highlight today
+    document.getElementById('journalPanelTitle').textContent = 'Health Log';
+    document.getElementById('deleteJournalBtn').style.display = 'inline-block';
+    editingJournalDate = dateKey;
+    
+    const saveBtn = document.querySelector('.journal-actions .btn-primary');
+    const originalText = saveBtn.textContent;
+    saveBtn.style.background = '#4CAF50';
+    saveBtn.textContent = 'Saved ✓';
+    
     setTimeout(() => {
-        const todayElement = document.querySelector('.day.today');
-        if (todayElement) {
-            todayElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        saveBtn.textContent = originalText;
+        saveBtn.style.background = '';
+    }, 1500);
+}
+
+async function deleteJournalEntry() {
+    if (!selectedDate) return;
+    
+    if (confirm('Are you sure you want to delete ALL entries for this day? This cannot be undone.')) {
+        const dateKey = formatDateKey(selectedDate);
+        delete journalEntries[dateKey];
+        
+        await saveJournalEntries();
+        renderCalendar();
+        closeJournalPanel();
+    }
+}
+
+async function saveJournalEntries() {
+    try {
+        if (window.electronAPI) {
+            const result = await window.electronAPI.saveEvents(journalEntries);
+            if (!result.success) {
+                console.error('Failed to save journal entries:', result.error);
+                alert('Failed to save journal data. Please try again.');
+            } else {
+                console.log('Journal entries saved successfully');
+            }
+        } else {
+            console.warn('electronAPI not available, cannot save journal entries');
         }
-    }, 100);
+    } catch (error) {
+        console.error('Error saving journal entries:', error);
+        alert('Error saving journal data. Please try again.');
+    }
+}
+
+async function loadJournalEntries() {
+    try {
+        if (window.electronAPI) {
+            const result = await window.electronAPI.loadEvents();
+            if (result.success) {
+                journalEntries = result.events || {};
+                console.log('Journal entries loaded successfully:', journalEntries);
+            } else {
+                console.error('Failed to load journal entries:', result.error);
+                journalEntries = {};
+            }
+        } else {
+            console.warn('electronAPI not available, using empty journal entries');
+            journalEntries = {};
+        }
+    } catch (error) {
+        console.error('Error loading journal entries:', error);
+        journalEntries = {};
+    }
 }
 
 function renderCalendar() {
     console.log('=== RENDERING CALENDAR ===');
     console.log('Current date being rendered:', currentDate);
-    console.log('All events in memory:', events);
+    console.log('All journal entries in memory:', journalEntries);
     
     const calendar = document.getElementById('calendar');
     const monthYear = document.getElementById('monthYear');
@@ -336,16 +409,13 @@ function renderCalendar() {
     }).format(currentDate);
     
     const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
     const startDate = new Date(firstDay);
     startDate.setDate(startDate.getDate() - firstDay.getDay());
     
     const today = new Date();
     
-    // Clear calendar
     calendar.innerHTML = '';
     
-    // Add day headers
     const dayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     dayHeaders.forEach(day => {
         const header = document.createElement('div');
@@ -354,13 +424,11 @@ function renderCalendar() {
         calendar.appendChild(header);
     });
     
-    // Add days
     const currentDateCopy = new Date(startDate);
     for (let i = 0; i < 42; i++) {
         const dayElement = document.createElement('div');
         dayElement.className = 'day';
         
-        // Create a snapshot of the current date for this specific day
         const thisDayDate = new Date(currentDateCopy.getFullYear(), currentDateCopy.getMonth(), currentDateCopy.getDate());
         
         const dayNumber = document.createElement('div');
@@ -381,39 +449,44 @@ function renderCalendar() {
         }
         
         const dateKey = formatDateKey(currentDateCopy);
-        console.log('Checking events for date key:', dateKey, 'Current date copy:', currentDateCopy);
+        console.log('Checking journal entries for date key:', dateKey);
         
-        if (events[dateKey] && events[dateKey].length > 0) {
-            console.log('Found', events[dateKey].length, 'events for', dateKey, ':', events[dateKey]);
+        if (journalEntries[dateKey]) {
+            console.log('Found journal entry for', dateKey);
             
-            events[dateKey].forEach((event, index) => {
-                console.log(`Processing event ${index}:`, event);
+            const journal = journalEntries[dateKey];
+            
+            if (journal.logEntries && journal.logEntries.length > 0) {
+                const categoryEmojis = new Set();
+                journal.logEntries.forEach(entry => {
+                    if (entry.category) {
+                        const emoji = entry.category.split(' ')[0];
+                        categoryEmojis.add(emoji);
+                    }
+                });
                 
-                // Only show emojis, no text or containers
-                const eventEmojis = document.createElement('span');
-                eventEmojis.className = 'event-emojis-only';
-                
-                // Display all emojis (backward compatibility)
-                if (event.emojis && event.emojis.length > 0) {
-                    eventEmojis.textContent = event.emojis.join('');
-                    console.log('Using new emojis format:', event.emojis.join(''));
-                } else if (event.emoji) {
-                    eventEmojis.textContent = event.emoji; // Old format
-                    console.log('Using old emoji format:', event.emoji);
+                if (categoryEmojis.size > 0) {
+                    const journalEmojis = document.createElement('span');
+                    journalEmojis.className = 'event-emojis-only';
+                    journalEmojis.textContent = Array.from(categoryEmojis).join('');
+                    
+                    const entryCount = document.createElement('span');
+                    entryCount.className = 'entry-count';
+                    entryCount.textContent = `${journal.logEntries.length}`;
+                    entryCount.style.fontSize = '10px';
+                    entryCount.style.color = '#666';
+                    entryCount.style.marginLeft = '2px';
+                    
+                    const wrapper = document.createElement('div');
+                    wrapper.appendChild(journalEmojis);
+                    wrapper.appendChild(entryCount);
+                    
+                    dayEvents.appendChild(wrapper);
+                    console.log('Added category emojis to calendar');
                 }
-                
-                // Click handler for editing
-                eventEmojis.onclick = (e) => {
-                    e.stopPropagation();
-                    console.log('Clicked on event:', event);
-                    editEvent(dateKey, event.id);
-                };
-                
-                dayEvents.appendChild(eventEmojis);
-                console.log('Added emoji-only event to calendar');
-            });
+            }
         } else {
-            console.log('No events found for', dateKey);
+            console.log('No journal entry found for', dateKey);
         }
         
         dayElement.appendChild(dayNumber);
@@ -432,184 +505,21 @@ function renderCalendar() {
     console.log('Calendar rendered successfully');
 }
 
-function selectDate(date, element) {
-    console.log('=== DATE SELECTION ===');
-    console.log('Clicked date object:', date);
-    console.log('Date string:', date.toDateString());
-    console.log('Date parts - Year:', date.getFullYear(), 'Month:', date.getMonth(), 'Day:', date.getDate());
-    
-    // Remove previous selection
-    document.querySelectorAll('.day.selected').forEach(day => {
-        day.classList.remove('selected');
-    });
-    
-    // Add selection to clicked day
-    element.classList.add('selected');
-    
-    // Create a clean copy of the date to avoid reference issues
-    selectedDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    console.log('Selected date set to:', selectedDate);
-    console.log('Selected date key will be:', formatDateKey(selectedDate));
-    
-    // Reset editing state for new event
-    editingEventId = null;
-    
-    // Open modal for new event
-    openModal();
-}
-
-function openModal(isEdit = false) {
-    const modal = document.getElementById('eventModal');
-    const modalTitle = document.getElementById('modalTitle');
-    const deleteBtn = document.getElementById('deleteBtn');
-    
-    modalTitle.textContent = isEdit ? 'Edit Event' : 'Add Event';
-    deleteBtn.style.display = isEdit ? 'inline-block' : 'none';
-    
-    if (!isEdit) {
-        // Clear form for new event
-        document.getElementById('eventTitle').value = '';
-        document.getElementById('eventTime').value = '';
-        document.getElementById('eventNotes').value = '';
-        selectedEmojis = [];
-        document.getElementById('selectedEmojiDisplay').textContent = 'No emojis selected';
-        document.getElementById('emojiSearch').value = '';
-        currentCategory = 'all';
-        document.querySelectorAll('.category-btn').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.category === 'all');
-        });
-        populateEmojiGrid('all');
-    }
-    
-    modal.style.display = 'block';
-}
-
-function closeModal() {
-    document.getElementById('eventModal').style.display = 'none';
-    editingEventId = null;
-}
-
-async function saveEvent() {
-    const title = document.getElementById('eventTitle').value.trim();
-    const time = document.getElementById('eventTime').value;
-    const notes = document.getElementById('eventNotes').value.trim();
-    
-    if (!title) {
-        alert('Please enter an event title');
-        return;
-    }
-    
-    if (selectedEmojis.length === 0) {
-        alert('Please select at least one emoji');
-        return;
-    }
-    
-    const dateKey = formatDateKey(selectedDate);
-    console.log('Saving event for date key:', dateKey);
-    console.log('Selected date:', selectedDate);
-    
-    if (!events[dateKey]) {
-        events[dateKey] = [];
-    }
-    
-    const eventData = {
-        id: editingEventId || Date.now(),
-        title: title,
-        emojis: [...selectedEmojis], // Save array of emojis
-        time: time,
-        notes: notes,
-        timestamp: new Date().toLocaleString()
-    };
-    
-    console.log('Event data:', eventData);
-    
-    if (editingEventId) {
-        // Update existing event
-        const eventIndex = events[dateKey].findIndex(e => e.id === editingEventId);
-        if (eventIndex !== -1) {
-            events[dateKey][eventIndex] = eventData;
-        }
-    } else {
-        // Add new event
-        events[dateKey].push(eventData);
-    }
-    
-    console.log('All events after save:', events);
-    
-    await saveEvents();
+function goToToday() {
+    currentDate = new Date();
     renderCalendar();
-    closeModal();
-}
-
-function editEvent(dateKey, eventId) {
-    const event = events[dateKey].find(e => e.id === eventId);
-    if (!event) return;
     
-    // Parse the date key back to a date - handle both old and new formats
-    let year, month, day;
-    
-    if (dateKey.includes('-') && dateKey.split('-').length === 3) {
-        // New format: YYYY-MM-DD
-        const parts = dateKey.split('-');
-        year = parseInt(parts[0]);
-        month = parseInt(parts[1]) - 1; // Convert back to 0-indexed
-        day = parseInt(parts[2]);
-    } else {
-        // Old format fallback
-        const parts = dateKey.split('-').map(Number);
-        year = parts[0];
-        month = parts[1]; // Already 0-indexed in old format
-        day = parts[2];
-    }
-    
-    selectedDate = new Date(year, month, day);
-    editingEventId = eventId;
-    
-    // Fill form with event data
-    document.getElementById('eventTitle').value = event.title;
-    document.getElementById('eventTime').value = event.time || '';
-    document.getElementById('eventNotes').value = event.notes || '';
-    
-    // Handle both new array format and old single emoji format
-    if (event.emojis) {
-        selectedEmojis = [...event.emojis];
-    } else if (event.emoji) {
-        selectedEmojis = [event.emoji];
-    }
-    
-    document.getElementById('selectedEmojiDisplay').textContent = selectedEmojis.join(' ');
-    
-    // Update emoji selection in grid
-    populateEmojiGrid(currentCategory);
     setTimeout(() => {
-        document.querySelectorAll('.emoji-btn').forEach(btn => {
-            btn.classList.toggle('selected', selectedEmojis.includes(btn.textContent));
-        });
-    }, 100);
-    
-    openModal(true);
-}
-
-async function deleteEvent() {
-    if (!editingEventId) return;
-    
-    const dateKey = formatDateKey(selectedDate);
-    if (events[dateKey]) {
-        events[dateKey] = events[dateKey].filter(e => e.id !== editingEventId);
-        if (events[dateKey].length === 0) {
-            delete events[dateKey];
+        const todayElement = document.querySelector('.day.today');
+        if (todayElement) {
+            todayElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
-    }
-    
-    await saveEvents();
-    renderCalendar();
-    closeModal();
+    }, 100);
 }
 
 function formatDateKey(date) {
-    // Use a consistent format: YYYY-MM-DD
     const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0'); // Month is 0-indexed, so add 1
+    const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
 }
@@ -625,106 +535,30 @@ function nextMonth() {
 }
 
 async function clearAllData() {
-    if (confirm('Are you sure you want to clear all calendar data? This cannot be undone.')) {
-        events = {};
-        await saveEvents();
+    if (confirm('Are you sure you want to clear all journal data? This cannot be undone.')) {
+        journalEntries = {};
+        await saveJournalEntries();
         renderCalendar();
-        console.log('All calendar data cleared');
+        console.log('All journal data cleared');
     }
 }
 
-async function exportCalendar(filePath) {
-    try {
-        console.log('exportCalendar called with filePath:', filePath);
-        console.log('typeof filePath:', typeof filePath);
-        
-        if (!filePath) {
-            console.error('No file path provided for export');
-            alert('No file path selected for export');
-            return;
-        }
-        
-        console.log('Events to export:', events);
-        
-        const result = await window.electronAPI.exportCalendarToFile(filePath, events);
-        
-        if (result.success) {
-            alert(`Calendar exported successfully to:\n${filePath}`);
-            console.log('Calendar exported successfully');
-        } else {
-            alert(`Failed to export calendar: ${result.error}`);
-            console.error('Export failed:', result.error);
-        }
-    } catch (error) {
-        console.error('Error during export:', error);
-        alert(`Error exporting calendar: ${error.message}`);
-    }
-}
-
-async function importCalendar(filePath) {
-    try {
-        console.log('Importing calendar from:', filePath);
-        
-        const result = await window.electronAPI.importCalendarFromFile(filePath);
-        
-        if (result.success) {
-            const importedEvents = result.events;
-            console.log('Imported events:', importedEvents);
-            
-            // Ask user how to handle the import
-            const choice = confirm(
-                'How would you like to import this calendar?\n\n' +
-                'OK = Replace all current events\n' +
-                'Cancel = Merge with current events'
-            );
-            
-            if (choice) {
-                // Replace all events
-                events = importedEvents;
-                console.log('Replaced all events with imported data');
-            } else {
-                // Merge events
-                for (const [dateKey, eventList] of Object.entries(importedEvents)) {
-                    if (!events[dateKey]) {
-                        events[dateKey] = [];
-                    }
-                    events[dateKey].push(...eventList);
-                }
-                console.log('Merged imported events with existing events');
-            }
-            
-            await saveEvents();
-            renderCalendar();
-            
-            const eventCount = Object.values(events).reduce((total, eventList) => total + eventList.length, 0);
-            alert(`Calendar imported successfully!\nTotal events: ${eventCount}`);
-            
-        } else {
-            alert(`Failed to import calendar: ${result.error}`);
-            console.error('Import failed:', result.error);
-        }
-    } catch (error) {
-        console.error('Error during import:', error);
-        alert(`Error importing calendar: ${error.message}`);
-    }
-}
-
-// Fallback export method using browser download
 function fallbackExport() {
     try {
         console.log('=== FALLBACK EXPORT STARTED ===');
-        console.log('Current events to export:', events);
+        console.log('Current journal entries to export:', journalEntries);
         
-        if (!events || Object.keys(events).length === 0) {
-            console.log('No events to export');
-            alert('No calendar events to export!');
+        if (!journalEntries || Object.keys(journalEntries).length === 0) {
+            console.log('No journal entries to export');
+            alert('No journal entries to export!');
             return;
         }
         
         const exportData = {
             exportDate: new Date().toISOString(),
             version: '1.0',
-            events: events
+            type: 'health-journal',
+            entries: journalEntries
         };
         
         console.log('Export data prepared:', exportData);
@@ -737,30 +571,24 @@ function fallbackExport() {
         
         const link = document.createElement('a');
         link.href = URL.createObjectURL(dataBlob);
-        link.download = `my-calendar-backup-${new Date().toISOString().split('T')[0]}.json`;
+        link.download = `health-journal-backup-${new Date().toISOString().split('T')[0]}.json`;
         
         console.log('Download link created:', link.href);
         console.log('Download filename:', link.download);
         
-        // Make the link visible for debugging
-        link.style.display = 'block';
-        link.textContent = 'Download Calendar Backup';
-        
-        // Trigger download
         document.body.appendChild(link);
         console.log('Link added to DOM');
         
         link.click();
         console.log('Download link clicked');
         
-        // Clean up after a delay
         setTimeout(() => {
             document.body.removeChild(link);
             URL.revokeObjectURL(link.href);
             console.log('Download link cleaned up');
         }, 1000);
         
-        alert(`Calendar exported successfully!\nFile: ${link.download}\nCheck your Downloads folder.`);
+        alert(`Journal exported successfully!\nFile: ${link.download}\nCheck your Downloads folder.`);
         console.log('=== FALLBACK EXPORT COMPLETED ===');
         
     } catch (error) {
@@ -770,38 +598,7 @@ function fallbackExport() {
     }
 }
 
-// Direct export using Electron's file system
-async function exportCalendarDirect(filePath) {
-    try {
-        console.log('=== DIRECT EXPORT STARTED ===');
-        console.log('Export path:', filePath);
-        console.log('Current events to export:', events);
-        
-        if (!events || Object.keys(events).length === 0) {
-            console.log('No events to export');
-            alert('No calendar events to export!');
-            return;
-        }
-        
-        const result = await window.electronAPI.exportCalendarToFile(filePath, events);
-        
-        if (result.success) {
-            alert(`Calendar exported successfully!\nFile: ${result.filePath || filePath}\nCheck your Downloads folder.`);
-            console.log('Direct export completed successfully');
-        } else {
-            alert(`Failed to export calendar: ${result.error}`);
-            console.error('Direct export failed:', result.error);
-        }
-        
-    } catch (error) {
-        console.error('=== DIRECT EXPORT FAILED ===');
-        console.error('Error details:', error);
-        alert(`Direct export failed: ${error.message}`);
-    }
-}
-
-// Trigger direct export with a predefined path
 function triggerDirectExport() {
     console.log('Triggering direct export...');
-    fallbackExport(); // Use fallback for now, but the menu export should work with file system
+    fallbackExport();
 }
