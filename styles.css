@@ -135,6 +135,7 @@ body {
     margin-bottom: 15px;
     border-bottom: 1px solid #f0f0f0;
     flex-wrap: wrap;
+    align-items: center;
 }
 
 .emoji-btn {
@@ -162,6 +163,75 @@ body {
     background: #d4edda;
     border-color: #28a745;
     box-shadow: 0 2px 8px rgba(40, 167, 69, 0.2);
+}
+
+.emoji-btn.custom-emoji {
+    background: linear-gradient(135deg, #ffe8e8 0%, #fff0f0 100%);
+    border-color: #ffb8b8;
+    position: relative;
+}
+
+.emoji-btn.custom-emoji:hover {
+    background: linear-gradient(135deg, #ffd0d0 0%, #ffe0e0 100%);
+    border-color: #ff9999;
+}
+
+.emoji-btn.custom-emoji.selected {
+    background: linear-gradient(135deg, #d4edda 0%, #e8f5e8 100%);
+    border-color: #28a745;
+}
+
+/* Custom emoji input section */
+.add-emoji-container {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-left: 10px;
+    padding: 5px 10px;
+    background: rgba(79, 172, 254, 0.05);
+    border-radius: 15px;
+    border: 1px dashed #b8d0ff;
+}
+
+.custom-emoji-input {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 16px;
+    width: 120px;
+    text-align: center;
+}
+
+.custom-emoji-input:focus {
+    outline: none;
+    border-color: #4facfe;
+    box-shadow: 0 0 0 2px rgba(79, 172, 254, 0.2);
+}
+
+.custom-emoji-input::placeholder {
+    color: #aaa;
+    font-size: 12px;
+}
+
+.add-custom-emoji-btn {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    border: none;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+}
+
+.add-custom-emoji-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(79, 172, 254, 0.3);
 }
 
 /* Entry Section with lined paper effect */
@@ -301,23 +371,97 @@ body {
     line-height: 1.4;
 }
 
-.entry-delete {
+.entry-actions {
+    display: flex;
+    gap: 5px;
+    opacity: 0;
+    transition: all 0.2s ease;
+}
+
+.log-entry:hover .entry-actions {
+    opacity: 1;
+}
+
+.entry-edit, .entry-delete, .entry-save, .entry-cancel {
     background: none;
     border: none;
     color: #ccc;
     cursor: pointer;
     font-size: 14px;
-    padding: 0 5px;
-    opacity: 0;
+    padding: 2px 4px;
+    border-radius: 3px;
     transition: all 0.2s ease;
 }
 
-.log-entry:hover .entry-delete {
-    opacity: 1;
+.entry-edit:hover {
+    color: #4facfe;
+    background: rgba(79, 172, 254, 0.1);
 }
 
 .entry-delete:hover {
     color: #ff6b6b;
+    background: rgba(255, 107, 107, 0.1);
+}
+
+.entry-save:hover {
+    color: #28a745;
+    background: rgba(40, 167, 69, 0.1);
+}
+
+.entry-cancel:hover {
+    color: #ffc107;
+    background: rgba(255, 193, 7, 0.1);
+}
+
+/* Edit mode styles */
+.log-entry.editing {
+    background: rgba(79, 172, 254, 0.05);
+    border-left: 3px solid #4facfe;
+    padding-left: 10px;
+    margin-left: -10px;
+    border-radius: 5px;
+}
+
+.log-entry.editing .entry-actions {
+    opacity: 1;
+}
+
+.edit-emoji-select {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 2px 4px;
+    font-size: 14px;
+    min-width: 40px;
+}
+
+.edit-time-input {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 2px 4px;
+    font-size: 12px;
+    width: 60px;
+    text-align: center;
+    font-family: 'SF Mono', Monaco, monospace;
+}
+
+.edit-text-input {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 14px;
+    width: 100%;
+    min-width: 150px;
+}
+
+.edit-emoji-select:focus,
+.edit-time-input:focus,
+.edit-text-input:focus {
+    outline: none;
+    border-color: #4facfe;
+    box-shadow: 0 0 0 2px rgba(79, 172, 254, 0.2);
 }
 
 .empty-state {

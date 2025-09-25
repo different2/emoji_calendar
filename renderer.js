@@ -6,21 +6,80 @@ let currentDate = new Date();
 let selectedDate = null;
 let selectedEmoji = '📝';
 let journalEntries = {};
+let customEmojis = []; // Store custom emojis
+let defaultEmojis = ['😴', '🌡️','😊', '📝']; // Default set
 
 // Initialize calendar when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM loaded, initializing health log calendar...');
-    loadJournalEntries();
-    renderCalendar();
-    setupEventListeners();
-    setupEmojiButtons();
-    
-    setTimeout(() => {
-        console.log('=== JOURNAL ENTRIES CHECK AFTER LOAD ===');
-        console.log('Total journal entries loaded:', journalEntries);
-        console.log('Entry count:', Object.keys(journalEntries).length);
-    }, 1000);
+    loadJournalEntries().then(() => {
+        loadCustomEmojis().then(() => {
+            renderCalendar();
+            setupEventListeners();
+            setupEmojiButtons();
+            
+            setTimeout(() => {
+                console.log('=== INITIALIZATION COMPLETE ===');
+                console.log('Total journal entries loaded:', journalEntries);
+                console.log('Entry count:', Object.keys(journalEntries).length);
+                console.log('Custom emojis loaded:', customEmojis);
+            }, 1000);
+        });
+    });
 });
+
+async function loadCustomEmojis() {
+    try {
+        if (window.electronAPI) {
+            const result = await window.electronAPI.loadEvents();
+            if (result.success && result.events && result.events._customEmojis) {
+                customEmojis = result.events._customEmojis.customEmojis || [];
+                console.log('Custom emojis loaded successfully:', customEmojis);
+                
+                // Clean up the custom emoji data from journal entries
+                if (journalEntries._customEmojis) {
+                    delete journalEntries._customEmojis;
+                }
+            } else {
+                customEmojis = [];
+                console.log('No custom emojis found, starting with empty array');
+            }
+        } else {
+            console.warn('electronAPI not available, using empty custom emojis');
+            customEmojis = [];
+        }
+    } catch (error) {
+        console.error('Error loading custom emojis:', error);
+        customEmojis = [];
+    }
+}
+
+async function saveCustomEmojis() {
+    try {
+        if (window.electronAPI) {
+            const customEmojiData = {
+                customEmojis: customEmojis,
+                lastModified: new Date().toISOString()
+            };
+            
+            // Save custom emojis along with journal entries
+            const result = await window.electronAPI.saveEvents({
+                ...journalEntries,
+                '_customEmojis': customEmojiData
+            });
+            
+            if (!result.success) {
+                console.error('Failed to save custom emojis:', result.error);
+            } else {
+                console.log('Custom emojis saved successfully');
+            }
+        } else {
+            console.warn('electronAPI not available, cannot save custom emojis');
+        }
+    } catch (error) {
+        console.error('Error saving custom emojis:', error);
+    }
+}
 
 function setupEventListeners() {
     document.addEventListener('keydown', function(event) {
@@ -56,6 +115,160 @@ function setupEventListeners() {
     });
 }
 
+function renderEmojiButtons() {
+    const emojiRow = document.querySelector('.emoji-row');
+    if (!emojiRow) return;
+    
+    // Combine custom emojis with default emojis (custom first)
+    const allEmojis = [...customEmojis, ...defaultEmojis];
+    
+    // Remove duplicates while preserving order (custom emojis take priority)
+    const uniqueEmojis = [...new Set(allEmojis)];
+    
+    emojiRow.innerHTML = '';
+    
+    // Add emoji buttons
+    uniqueEmojis.forEach(emoji => {
+        const button = document.createElement('button');
+        button.className = 'emoji-btn';
+        button.dataset.emoji = emoji;
+        button.textContent = emoji;
+        button.title = customEmojis.includes(emoji) ? 'Custom emoji' : getEmojiTitle(emoji);
+        
+        // Add custom styling for custom emojis
+        if (customEmojis.includes(emoji)) {
+            button.classList.add('custom-emoji');
+            button.title += ' (Right-click to remove)';
+        }
+        
+        emojiRow.appendChild(button);
+    });
+    
+    // Add custom emoji input
+    const addEmojiContainer = document.createElement('div');
+    addEmojiContainer.className = 'add-emoji-container';
+    addEmojiContainer.innerHTML = `
+        <input type="text" class="custom-emoji-input" placeholder="Paste emoji here..." maxlength="2">
+        <button class="add-custom-emoji-btn" onclick="addCustomEmoji()" title="Add custom emoji">➕</button>
+    `;
+    
+    emojiRow.appendChild(addEmojiContainer);
+    
+    // Setup input event listener
+    const customInput = addEmojiContainer.querySelector('.custom-emoji-input');
+    customInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            addCustomEmoji();
+        }
+    });
+    
+    customInput.addEventListener('paste', (e) => {
+        // Auto-add emoji after paste with slight delay
+        setTimeout(() => {
+            const value = e.target.value.trim();
+            if (value && isEmoji(value)) {
+                addCustomEmojiFromInput(value);
+            }
+        }, 100);
+    });
+}
+
+function getEmojiTitle(emoji) {
+    const titles = {
+        '💊': 'Medication',
+        '🍽️': 'Food/Meal',
+        '💧': 'Drink/Water',
+        '🚽': 'Bathroom',
+        '😴': 'Sleep/Rest',
+        '🌡️': 'Symptoms',
+        '🚶‍♀️': 'Activity',
+        '😷': 'Medical',
+        '😊': 'Mood',
+        '📝': 'Note'
+    };
+    return titles[emoji] || 'Custom';
+}
+
+function isEmoji(str) {
+    // Comprehensive emoji detection - covers all Unicode emoji ranges
+    const emojiRegex = /(\u00a9|\u00ae|[\u2000-\u3300]|\ud83c[\ud000-\udfff]|\ud83d[\ud000-\udfff]|\ud83e[\ud000-\udfff])/;
+    
+    // Alternative method: try to detect if string contains emoji characters
+    // This catches most modern emojis including food emojis like 🥑
+    const hasEmoji = /[\u{1f300}-\u{1f5ff}\u{1f900}-\u{1f9ff}\u{1f600}-\u{1f64f}\u{1f680}-\u{1f6ff}\u{2600}-\u{26ff}\u{2700}-\u{27bf}\u{1f1e6}-\u{1f1ff}\u{1f191}-\u{1f251}\u{1f004}\u{1f0cf}\u{1f170}-\u{1f171}\u{1f17e}-\u{1f17f}\u{1f18e}\u{3030}\u{2b50}\u{2b55}\u{2934}-\u{2935}\u{2b05}-\u{2b07}\u{2b1b}-\u{2b1c}\u{3297}\u{3299}\u{303d}\u{00a9}\u{00ae}\u{2122}\u{23f3}\u{24c2}\u{23e9}-\u{23ef}\u{25b6}\u{23f8}-\u{23fa}]/u;
+    
+    // Check if it's likely an emoji (not just regular text)
+    const isLikelyEmoji = hasEmoji.test(str) || emojiRegex.test(str);
+    
+    // Additional check: if string length is 1-4 characters and contains Unicode above normal ASCII
+    const hasUnicode = /[^\x00-\x7F]/.test(str);
+    const isShort = str.length >= 1 && str.length <= 4;
+    
+    return isLikelyEmoji || (hasUnicode && isShort && str.trim().length > 0);
+}
+
+function addCustomEmoji() {
+    const input = document.querySelector('.custom-emoji-input');
+    if (!input) return;
+    
+    const emoji = input.value.trim();
+    addCustomEmojiFromInput(emoji);
+    input.value = '';
+}
+
+function addCustomEmojiFromInput(emoji) {
+    if (!emoji) {
+        alert('Please enter an emoji');
+        return;
+    }
+    
+    if (!isEmoji(emoji)) {
+        alert('Please enter a valid emoji (not text)');
+        return;
+    }
+    
+    // Check if emoji already exists
+    if (customEmojis.includes(emoji) || defaultEmojis.includes(emoji)) {
+        alert('This emoji is already in your collection');
+        return;
+    }
+    
+    // Add to custom emojis at the beginning
+    customEmojis.unshift(emoji);
+    
+    // Limit to 20 custom emojis
+    if (customEmojis.length > 20) {
+        customEmojis = customEmojis.slice(0, 20);
+    }
+    
+    saveCustomEmojis();
+    renderEmojiButtons();
+    setupEmojiButtons();
+    
+    // Select the new emoji
+    setTimeout(() => {
+        const newEmojiBtn = document.querySelector(`[data-emoji="${emoji}"]`);
+        if (newEmojiBtn) {
+            newEmojiBtn.click();
+        }
+    }, 100);
+}
+
+function removeCustomEmoji(emoji) {
+    customEmojis = customEmojis.filter(e => e !== emoji);
+    saveCustomEmojis();
+    renderEmojiButtons();
+    setupEmojiButtons();
+    
+    // If this was the selected emoji, select the first available emoji
+    if (selectedEmoji === emoji) {
+        const firstBtn = document.querySelector('.emoji-btn');
+        if (firstBtn) {
+            firstBtn.click();
+        }
+    }
+}
+
 function setupEmojiButtons() {
     // Wait for panel to be available, then setup emoji buttons
     const checkForPanel = () => {
@@ -63,9 +276,17 @@ function setupEmojiButtons() {
         
         if (emojiButtons.length > 0) {
             emojiButtons.forEach(btn => {
+                // Remove existing listeners to prevent duplicates
+                btn.replaceWith(btn.cloneNode(true));
+            });
+            
+            // Re-select the buttons after cloning
+            const refreshedButtons = document.querySelectorAll('.emoji-btn');
+            
+            refreshedButtons.forEach(btn => {
                 btn.addEventListener('click', function() {
                     // Remove selected class from all buttons
-                    emojiButtons.forEach(b => b.classList.remove('selected'));
+                    refreshedButtons.forEach(b => b.classList.remove('selected'));
                     
                     // Add selected class to clicked button
                     this.classList.add('selected');
@@ -85,11 +306,22 @@ function setupEmojiButtons() {
                         }
                     }, 100);
                 });
+                
+                // Re-add context menu for custom emojis
+                if (customEmojis.includes(btn.dataset.emoji)) {
+                    btn.addEventListener('contextmenu', (e) => {
+                        e.preventDefault();
+                        if (confirm(`Remove custom emoji "${btn.dataset.emoji}" from your collection?`)) {
+                            removeCustomEmoji(btn.dataset.emoji);
+                        }
+                    });
+                }
             });
             
-            // Select the first emoji by default
-            if (emojiButtons[0]) {
-                emojiButtons[0].click();
+            // Select the first emoji by default if none selected
+            const selectedBtn = document.querySelector('.emoji-btn.selected');
+            if (!selectedBtn && refreshedButtons[0]) {
+                refreshedButtons[0].click();
             }
         } else {
             // Panel not ready yet, try again
@@ -131,6 +363,9 @@ function openJournalPanel() {
     };
     dateDisplay.textContent = selectedDate.toLocaleDateString('en-US', options);
     title.textContent = 'Daily Log';
+    
+    // Render emoji buttons with custom emojis
+    renderEmojiButtons();
     
     // Setup emoji buttons when panel opens
     setTimeout(setupEmojiButtons, 100);
@@ -239,11 +474,14 @@ function refreshEntriesList() {
     });
     
     entriesList.innerHTML = sortedEntries.map(entry => `
-        <div class="log-entry">
-            <div class="entry-emoji">${entry.category}</div>
-            <div class="entry-time">${entry.time}</div>
-            <div class="entry-text">${entry.details}</div>
-            <button class="entry-delete" onclick="deleteLogEntry(${entry.id})" title="Delete entry">×</button>
+        <div class="log-entry" data-entry-id="${entry.id}">
+            <div class="entry-emoji" data-field="emoji">${entry.category}</div>
+            <div class="entry-time" data-field="time">${entry.time}</div>
+            <div class="entry-text" data-field="text">${entry.details}</div>
+            <div class="entry-actions">
+                <button class="entry-edit" onclick="editLogEntry(${entry.id})" title="Edit entry">✏️</button>
+                <button class="entry-delete" onclick="deleteLogEntry(${entry.id})" title="Delete entry">×</button>
+            </div>
         </div>
     `).join('');
 }
@@ -260,6 +498,118 @@ function deleteLogEntry(entryId) {
         renderCalendar();
         refreshEntriesList();
     }
+}
+
+function editLogEntry(entryId) {
+    const dateKey = formatDateKey(selectedDate);
+    const dayData = journalEntries[dateKey];
+    
+    if (!dayData || !dayData.logEntries) return;
+    
+    const entry = dayData.logEntries.find(e => e.id === entryId);
+    if (!entry) return;
+    
+    const entryElement = document.querySelector(`[data-entry-id="${entryId}"]`);
+    if (!entryElement) return;
+    
+    // Check if already editing
+    if (entryElement.classList.contains('editing')) {
+        saveEditedEntry(entryId);
+        return;
+    }
+    
+    // Enter edit mode
+    entryElement.classList.add('editing');
+    
+    // Replace emoji with selector
+    const emojiElement = entryElement.querySelector('[data-field="emoji"]');
+    const currentEmoji = entry.category;
+    
+    // Get all available emojis for the dropdown
+    const allEmojis = [...customEmojis, ...defaultEmojis];
+    const uniqueEmojis = [...new Set(allEmojis)];
+    
+    const emojiOptions = uniqueEmojis.map(emoji => 
+        `<option value="${emoji}" ${currentEmoji === emoji ? 'selected' : ''}>${emoji}</option>`
+    ).join('');
+    
+    emojiElement.innerHTML = `<select class="edit-emoji-select">${emojiOptions}</select>`;
+    
+    // Replace time with input
+    const timeElement = entryElement.querySelector('[data-field="time"]');
+    timeElement.innerHTML = `<input type="time" class="edit-time-input" value="${entry.time}">`;
+    
+    // Replace text with input
+    const textElement = entryElement.querySelector('[data-field="text"]');
+    textElement.innerHTML = `<input type="text" class="edit-text-input" value="${entry.details}">`;
+    
+    // Update action buttons
+    const actionsElement = entryElement.querySelector('.entry-actions');
+    actionsElement.innerHTML = `
+        <button class="entry-save" onclick="saveEditedEntry(${entryId})" title="Save changes">💾</button>
+        <button class="entry-cancel" onclick="cancelEditEntry(${entryId})" title="Cancel">❌</button>
+    `;
+    
+    // Focus on text input
+    const textInput = textElement.querySelector('.edit-text-input');
+    textInput.focus();
+    textInput.setSelectionRange(textInput.value.length, textInput.value.length);
+}
+
+function saveEditedEntry(entryId) {
+    const dateKey = formatDateKey(selectedDate);
+    const dayData = journalEntries[dateKey];
+    
+    if (!dayData || !dayData.logEntries) return;
+    
+    const entryElement = document.querySelector(`[data-entry-id="${entryId}"]`);
+    if (!entryElement) return;
+    
+    // Get edited values
+    const newEmoji = entryElement.querySelector('.edit-emoji-select').value;
+    const newTime = entryElement.querySelector('.edit-time-input').value;
+    const newText = entryElement.querySelector('.edit-text-input').value.trim();
+    
+    if (!newTime || !newText) {
+        alert('Please enter both time and note');
+        return;
+    }
+    
+    // Update the entry
+    const entryIndex = dayData.logEntries.findIndex(e => e.id === entryId);
+    if (entryIndex !== -1) {
+        dayData.logEntries[entryIndex] = {
+            ...dayData.logEntries[entryIndex],
+            category: newEmoji,
+            time: newTime,
+            details: newText,
+            lastModified: new Date().toISOString()
+        };
+        
+        // Sort entries by time after editing
+        dayData.logEntries.sort((a, b) => a.time.localeCompare(b.time));
+        
+        saveJournalEntries();
+        renderCalendar();
+        refreshEntriesList();
+        
+        // Show success feedback
+        const saveBtn = entryElement.querySelector('.entry-save');
+        if (saveBtn) {
+            const originalText = saveBtn.innerHTML;
+            saveBtn.innerHTML = '✅';
+            setTimeout(() => {
+                if (document.querySelector(`[data-entry-id="${entryId}"]`)) {
+                    refreshEntriesList(); // Refresh to exit edit mode
+                }
+            }, 1000);
+        }
+    }
+}
+
+function cancelEditEntry(entryId) {
+    // Simply refresh the entries list to cancel editing
+    refreshEntriesList();
 }
 
 async function saveJournalEntries() {
@@ -474,7 +824,8 @@ function fallbackExport() {
             exportDate: new Date().toISOString(),
             version: '1.0',
             type: 'health-journal',
-            entries: journalEntries
+            entries: journalEntries,
+            customEmojis: customEmojis
         };
         
         console.log('Export data prepared:', exportData);
