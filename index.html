@@ -28,82 +28,50 @@
             </div>
         </div>
 
-        <!-- Journal Panel -->
+        <!-- Simplified Journal Panel -->
         <div class="journal-panel hidden" id="journalPanel">
-            <div class="journal-header">
-                <h2 id="journalPanelTitle">Select a day to start logging</h2>
-                <button class="close-panel" onclick="closeJournalPanel()">×</button>
-            </div>
-            
-            <div class="journal-content" id="journalContent">
-                <div class="journal-date-display">
-                    <h3 id="selectedDateDisplay">No date selected</h3>
+            <div class="notebook-page">
+                <!-- Cherry blossom decoration -->
+                <div class="cherry-decoration">🌸</div>
+                
+                <div class="journal-header">
+                    <div class="header-top">
+                        <h2 class="title" id="journalPanelTitle">Daily Log</h2>
+                        <div class="date-display" id="selectedDateDisplay">Select a day</div>
+                    </div>
+                    <button class="close-panel" onclick="closeJournalPanel()">×</button>
                 </div>
 
-                <!-- Add New Entry Section -->
-                <div class="add-entry-section">
-                    <h4>➕ Add New Entry</h4>
-                    
-                    <div class="time-input-section">
-                        <label>Time:</label>
-                        <div class="time-input-group">
-                            <input type="time" id="entryTime" placeholder="Enter time...">
-                            <button type="button" class="current-time-btn" onclick="setCurrentTime()">Now</button>
+                <div class="main-content">
+                    <div class="emoji-row">
+                        <button class="emoji-btn" data-emoji="💊" title="Medication">💊</button>
+                        <button class="emoji-btn" data-emoji="🍽️" title="Food/Meal">🍽️</button>
+                        <button class="emoji-btn" data-emoji="💧" title="Drink/Water">💧</button>
+                        <button class="emoji-btn" data-emoji="🚽" title="Bathroom">🚽</button>
+                        <button class="emoji-btn" data-emoji="😴" title="Sleep/Rest">😴</button>
+                        <button class="emoji-btn" data-emoji="🌡️" title="Symptoms">🌡️</button>
+                        <button class="emoji-btn" data-emoji="🚶‍♀️" title="Activity">🚶‍♀️</button>
+                        <button class="emoji-btn" data-emoji="😷" title="Medical">😷</button>
+                        <button class="emoji-btn" data-emoji="😊" title="Mood">😊</button>
+                        <button class="emoji-btn" data-emoji="📝" title="Note">📝</button>
+                    </div>
+
+                    <div class="entry-section">
+                        <div class="entry-form">
+                            <div class="selected-emoji-display" id="selectedEmoji">📝</div>
+                            <input type="time" class="time-input" id="entryTime" placeholder="Time">
+                            <button class="now-btn" onclick="setCurrentTime()">Now</button>
+                            <input type="text" class="note-input" id="noteInput" placeholder="What happened? Add details here...">
+                            <button class="add-btn" onclick="addLogEntry()">Add</button>
+                        </div>
+
+                        <div class="entries-list" id="entriesList">
+                            <div class="empty-state">
+                                Start logging your day by selecting an emoji, time, and adding a note above.
+                            </div>
                         </div>
                     </div>
-
-                    <div class="category-section">
-                        <label>Category (optional):</label>
-                        <div class="category-buttons">
-                            <button type="button" class="category-tag" onclick="selectCategory('💊', 'Medication')">💊 Medication</button>
-                            <button type="button" class="category-tag" onclick="selectCategory('🍽️', 'Food/Drink')">🍽️ Food/Drink</button>
-                            <button type="button" class="category-tag" onclick="selectCategory('🚽', 'Bathroom')">🚽 Bathroom</button>
-                            <button type="button" class="category-tag" onclick="selectCategory('😴', 'Sleep')">😴 Sleep</button>
-                            <button type="button" class="category-tag" onclick="selectCategory('🌡️', 'Symptoms')">🌡️ Symptoms</button>
-                            <button type="button" class="category-tag" onclick="selectCategory('📝', 'Note')">📝 Note</button>
-                        </div>
-                        <div class="custom-category">
-                            <input type="text" id="customCategory" placeholder="Or type custom category...">
-                        </div>
-                    </div>
-
-                    <div class="entry-content-section">
-                        <label>Details:</label>
-                        <textarea id="entryDetails" placeholder="What happened? Details, dosage, amount, observations, etc..."></textarea>
-                    </div>
-
-                    <div class="entry-actions">
-                        <button class="btn btn-primary" onclick="addLogEntry()">Add Entry</button>
-                    </div>
                 </div>
-
-                <!-- Existing Entries for This Day -->
-                <div class="existing-entries-section">
-                    <h4>📋 Today's Log</h4>
-                    <div id="entriesList" class="entries-list">
-                        <p class="no-entries-message">No entries for this day yet.</p>
-                    </div>
-                </div>
-
-                <!-- Quick Stats Section -->
-                <div class="stats-section">
-                    <h4>📊 Quick Summary</h4>
-                    <div id="quickStats" class="quick-stats">
-                        <!-- Will be populated with entry counts -->
-                    </div>
-                </div>
-
-                <!-- Daily Notes Section -->
-                <div class="journal-section">
-                    <h4>💭 Daily Notes</h4>
-                    <textarea id="dailyNotes" placeholder="Overall notes for the day, observations, how she's feeling, etc..."></textarea>
-                </div>
-            </div>
-
-            <div class="journal-actions">
-                <button class="btn btn-delete" id="deleteJournalBtn" onclick="deleteJournalEntry()" style="display: none;">Delete All</button>
-                <button class="btn btn-secondary" onclick="clearJournalForm()">Clear Form</button>
-                <button class="btn btn-primary" onclick="saveJournalEntry()">Save Daily Notes</button>
             </div>
         </div>
     </div>

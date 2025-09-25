@@ -1,24 +1,11 @@
-// My Health Log Calendar - Renderer Process
+// My Health Log Calendar - Renderer Process with Simplified Journal
 // No Node.js imports allowed in renderer with contextIsolation
 
 // Initialize global variables first
 let currentDate = new Date();
 let selectedDate = null;
-let selectedCategory = '';
-let editingJournalDate = null;
+let selectedEmoji = '📝';
 let journalEntries = {};
-
-// Comprehensive emoji database organized by categories
-const emojiDatabase = {
-    smileys: ['😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '🙃', '😉', '😊', '😇', '🥰', '😍', '🤩', '😘', '😗', '😚', '😙', '😋', '😛', '😜', '🤪', '😝', '🤑', '🤗', '🤭', '🤫', '🤔', '🤐', '🤨', '😐', '😑', '😶', '😏', '😒', '🙄', '😬', '🤥', '😔', '😪', '🤤', '😴', '😷', '🤒', '🤕', '🤢', '🤮', '🤧', '🥵', '🥶', '🥴', '😵', '🤯', '🤠', '🥳', '😎', '🤓', '🧐'],
-    people: ['👶', '🧒', '👦', '👧', '🧑', '👱', '👨', '🧔', '👱‍♂️', '👨‍🦰', '👨‍🦱', '👨‍🦳', '👨‍🦲', '👩', '👱‍♀️', '👩‍🦰', '👩‍🦱', '👩‍🦳', '👩‍🦲', '🧓', '👴', '👵', '🙍', '🙍‍♂️', '🙍‍♀️', '🙎', '🙎‍♂️', '🙎‍♀️', '🙅', '🙅‍♂️', '🙅‍♀️', '🙆', '🙆‍♂️', '🙆‍♀️', '💁', '💁‍♂️', '💁‍♀️', '🙋', '🙋‍♂️', '🙋‍♀️', '🧏', '🧏‍♂️', '🧏‍♀️', '🙇', '🙇‍♂️', '🙇‍♀️', '🤦', '🤦‍♂️', '🤦‍♀️', '🤷', '🤷‍♂️', '🤷‍♀️'],
-    nature: ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐽', '🐸', '🐵', '🙈', '🙉', '🙊', '🐒', '🐔', '🐧', '🐦', '🐤', '🐣', '🐥', '🦆', '🦅', '🦉', '🦇', '🐺', '🐗', '🐴', '🦄', '🐝', '🐛', '🦋', '🐌', '🐞', '🐜', '🦟', '🦗', '🕷', '🕸', '🦂', '🐢', '🐍', '🦎', '🦖', '🦕', '🐙', '🦑', '🦐', '🦞', '🦀', '🐡', '🐠', '🐟', '🐬', '🐳', '🐋', '🦈', '🐊', '🐅', '🐆', '🦓', '🦍', '🦧', '🐘', '🦛', '🦏', '🐪', '🐫', '🦒', '🦘', '🐃', '🐂', '🐄', '🐎', '🐖', '🐏', '🐑', '🦙', '🐐', '🦌', '🐕', '🐩', '🦮', '🐕‍🦺', '🐈', '🐓', '🦃', '🦚', '🦜', '🦢', '🦩', '🕊', '🐇', '🦝', '🦨', '🦡', '🦦', '🦥', '🐁', '🐀', '🐿', '🦔', '🌱', '🌿', '🍀', '🎋', '🌾', '🌵', '🌲', '🌳', '🌴', '🌻', '🌺', '🌸', '🌼', '🌷'],
-    food: ['🍎', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', '🍈', '🍒', '🍑', '🥭', '🍍', '🥥', '🥝', '🍅', '🍆', '🥑', '🥦', '🥬', '🥒', '🌶', '🫑', '🌽', '🥕', '🫒', '🧄', '🧅', '🥔', '🍠', '🥐', '🥯', '🍞', '🥖', '🥨', '🧀', '🥚', '🍳', '🧈', '🥞', '🧇', '🥓', '🥩', '🍗', '🍖', '🌭', '🍔', '🍟', '🍕', '🥪', '🥙', '🧆', '🌮', '🌯', '🫔', '🥗', '🥘', '🫕', '🍝', '🍜', '🍲', '🍛', '🍣', '🍱', '🥟', '🦪', '🍤', '🍙', '🍚', '🍘', '🍥', '🥠', '🥮', '🍢', '🍡', '🍧', '🍨', '🍦', '🥧', '🧁', '🎂', '🍰', '🍪', '🍫', '🍬', '🍭', '🍮', '🍯', '☕', '🍵', '🧃', '🥤', '🧋', '🍶', '🍾', '🍷', '🍸', '🍹', '🍺', '🍻', '🥂', '🥃'],
-    activities: ['⚽', '🏀', '🏈', '⚾', '🥎', '🎾', '🏐', '🏉', '🥏', '🎱', '🪀', '🏓', '🏸', '🏒', '🏑', '🥍', '🏏', '🪃', '🥅', '⛳', '🪁', '🏹', '🎣', '🤿', '🥊', '🥋', '🎽', '🛹', '🛷', '⛸', '🥌', '🎿', '⛷', '🏂', '🪂', '🏋️', '🤼', '🤸', '⛹️', '🤺', '🤾', '🏌️', '🏇', '🧘', '🏃', '🚶', '🧎', '🧍', '🤳', '💃', '🕺', '👯', '🕴', '🚣', '🏊', '🚴', '🚵', '🤹', '🧗', '🎪', '🎨', '🎬', '🎤', '🎧', '🎼', '🎵', '🎶', '🥇', '🥈', '🥉', '🏆', '🏅', '🎖', '🏵', '🎗', '🎫', '🎟', '🎪', '🤹', '🎭', '🩰', '🎨', '🎬', '🎤', '🎧', '🎼', '🎵', '🎶', '🎯', '🎳', '🎮', '🎰', '🧩'],
-    travel: ['🚗', '🚕', '🚙', '🚌', '🚎', '🏎', '🚓', '🚑', '🚒', '🚐', '🛻', '🚚', '🚛', '🚜', '🏍', '🛵', '🚲', '🛴', '🛹', '🛼', '🚁', '🛸', '✈️', '🛩', '🛫', '🛬', '🪂', '💺', '🚀', '🛰', '🚉', '🚞', '🚝', '🚄', '🚅', '🚈', '🚂', '🚆', '🚇', '🚊', '🚟', '🚠', '🚡', '⛴', '🚢', '⛵', '🚤', '🛥', '🛶', '⚓', '⛽', '🚧', '🚨', '🚥', '🚦', '🛑', '🚏', '🗺', '🗿', '🗽', '🗼', '🏰', '🏯', '🏟', '🎡', '🎢', '🎠', '⛲', '⛱', '🏖', '🏝', '🏜', '🌋', '⛰', '🏔', '🗻', '🏕', '⛺', '🏠', '🏡', '🏘', '🏚', '🏗', '🏭', '🏢', '🏬', '🏣', '🏤', '🏥', '🏦', '🏨', '🏪', '🏫', '🏩', '💒', '🏛', '⛪', '🕌', '🕍', '🛕'],
-    objects: ['⌚', '📱', '📲', '💻', '⌨️', '🖥', '🖨', '🖱', '🖲', '🕹', '🗜', '💽', '💾', '💿', '📀', '📼', '📷', '📸', '📹', '🎥', '📽', '🎞', '📞', '☎️', '📟', '📠', '📺', '📻', '🎙', '🎚', '🎛', '🧭', '⏱', '⏲', '⏰', '🕰', '⌛', '⏳', '📡', '🔋', '🔌', '💡', '🔦', '🕯', '🪔', '🧯', '🛢', '💸', '💵', '💴', '💶', '💷', '💰', '💳', '💎', '⚖️', '🧰', '🔧', '🔨', '⚒', '🛠', '⛏', '🔩', '⚙️', '🧱', '⛓', '🧲', '🔫', '💣', '🧨', '🪓', '🔪', '🗡', '⚔️', '🛡', '🚬', '⚰️', '⚱️', '🏺', '🔮', '📿', '🧿', '💈', '⚗️', '🔭', '🔬', '🕳', '🩹', '🩺', '💊', '💉', '🧬', '🦠', '🧫', '🧪', '🌡', '🧹', '🧺', '🧻', '🚽', '🚰', '🚿', '🛁', '🛀', '🧼', '🪒', '🧽', '🧴', '🛎', '🔑', '🗝', '🚪', '🪑', '🛋', '🛏', '🛌', '🧸', '🖼', '🛍', '🛒', '🎁', '🎈', '🎏', '🎀', '🎊', '🎉', '🪅', '🪆', '📝', '📃', '📄', '📑', '📊', '📈', '📉', '🗒', '🗓', '📆', '📅', '🗑', '📇', '🗃', '🗳', '🗄', '📋', '📌', '📍', '📎', '🖇', '📏', '📐', '✂️'],
-    symbols: ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟', '☮️', '✝️', '☪️', '🕉', '☸️', '✡️', '🔯', '🕎', '☯️', '☦️', '🛐', '⛎', '♈', '♉', '♊', '♋', '♌', '♍', '♎', '♏', '♐', '♑', '♒', '♓', '🆔', '⚛️', '🉑', '☢️', '☣️', '📴', '📳', '🈶', '🈚', '🈸', '🈺', '🈷️', '✴️', '🆚', '💮', '🉐', '㊙️', '㊗️', '🈴', '🈵', '🈹', '🈲', '🅰️', '🅱️', '🆎', '🆑', '🅾️', '🆘', '❌', '⭕', '🛑', '⛔', '📛', '🚫', '💯', '💢', '♨️', '🚷', '🚯', '🚳', '🚱', '🔞', '📵', '🚭', '❗', '❕', '❓', '❔', '‼️', '⁉️', '🔅', '🔆', '〽️', '⚠️', '🚸', '🔱', '⚜️', '🔰', '♻️', '✅', '🈯', '💹', '❇️', '✳️', '❎', '🌐', '💠', 'Ⓜ️', '🌀', '💤', '🏧', '🚾', '♿', '🅿️', '🈳', '🈂️', '🛂', '🛃', '🛄', '🛅', '🚹', '🚺', '🚼', '🚻', '🚮', '🎦', '📶', '🈁', '🔣', 'ℹ️', '🔤', '🔡', '🔠', '🆖', '🆗', '🆙', '🆒', '🆕', '🆓', '0️⃣', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟', '🔢', '#️⃣', '*️⃣', '⏏️', '▶️', '⏸', '⏯', '⏹', '⏺', '⏭', '⏮', '⏩', '⏪', '⏫', '⏬', '◀️', '🔼', '🔽', '➡️', '⬅️', '⬆️', '⬇️', '↗️', '↘️', '↙️', '↖️', '↕️', '↔️', '↪️', '↩️', '⤴️', '⤵️', '🔀', '🔁', '🔂', '🔄', '🔃', '🎵', '🎶', '➕', '➖', '➗', '✖️', '♾', '💲', '💱', '™️', '©️', '®️', '👁‍🗨', '🔚', '🔙', '🔛', '🔝', '🔜', '〰️', '➰', '➿', '✔️', '☑️', '🔘', '🔴', '🟠', '🟡', '🟢', '🔵', '🟣', '⚫', '⚪', '🟤', '🔺', '🔻', '🔸', '🔹', '🔶', '🔷', '🔳', '🔲', '▪️', '▫️', '◾', '◽', '◼️', '◻️', '🟥', '🟧', '🟨', '🟩', '🟦', '🟪', '⬛', '⬜', '🟫', '🔈', '🔇', '🔉', '🔊', '🔔', '🔕', '📣', '📢', '💬', '💭', '🗯', '♠️', '♣️', '♥️', '♦️', '🃏', '🎴', '🀄', '🕐', '🕑', '🕒', '🕓', '🕔', '🕕', '🕖', '🕗', '🕘', '🕙', '🕚', '🕛', '🕜', '🕝', '🕞', '🕟', '🕠', '🕡', '🕢', '🕣', '🕤', '🕥', '🕦', '🕧']
-};
 
 // Initialize calendar when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
@@ -26,6 +13,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loadJournalEntries();
     renderCalendar();
     setupEventListeners();
+    setupEmojiButtons();
     
     setTimeout(() => {
         console.log('=== JOURNAL ENTRIES CHECK AFTER LOAD ===');
@@ -55,6 +43,10 @@ function setupEventListeners() {
                     console.log('Keyboard shortcut for export triggered');
                     fallbackExport();
                     break;
+                case 'Enter':
+                    event.preventDefault();
+                    addLogEntry();
+                    break;
             }
         }
         
@@ -62,6 +54,50 @@ function setupEventListeners() {
             closeJournalPanel();
         }
     });
+}
+
+function setupEmojiButtons() {
+    // Wait for panel to be available, then setup emoji buttons
+    const checkForPanel = () => {
+        const emojiButtons = document.querySelectorAll('.emoji-btn');
+        
+        if (emojiButtons.length > 0) {
+            emojiButtons.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    // Remove selected class from all buttons
+                    emojiButtons.forEach(b => b.classList.remove('selected'));
+                    
+                    // Add selected class to clicked button
+                    this.classList.add('selected');
+                    
+                    // Update selected emoji
+                    selectedEmoji = this.dataset.emoji;
+                    const display = document.getElementById('selectedEmoji');
+                    if (display) {
+                        display.textContent = selectedEmoji;
+                    }
+                    
+                    // Auto-focus on note input
+                    setTimeout(() => {
+                        const noteInput = document.getElementById('noteInput');
+                        if (noteInput) {
+                            noteInput.focus();
+                        }
+                    }, 100);
+                });
+            });
+            
+            // Select the first emoji by default
+            if (emojiButtons[0]) {
+                emojiButtons[0].click();
+            }
+        } else {
+            // Panel not ready yet, try again
+            setTimeout(checkForPanel, 100);
+        }
+    };
+    
+    checkForPanel();
 }
 
 function selectDate(date, element) {
@@ -84,7 +120,6 @@ function openJournalPanel() {
     const panel = document.getElementById('journalPanel');
     const title = document.getElementById('journalPanelTitle');
     const dateDisplay = document.getElementById('selectedDateDisplay');
-    const deleteBtn = document.getElementById('deleteJournalBtn');
     
     panel.classList.remove('hidden');
     
@@ -95,24 +130,12 @@ function openJournalPanel() {
         day: 'numeric' 
     };
     dateDisplay.textContent = selectedDate.toLocaleDateString('en-US', options);
+    title.textContent = 'Daily Log';
     
-    const dateKey = formatDateKey(selectedDate);
-    const existingEntry = journalEntries[dateKey];
-    
-    if (existingEntry) {
-        title.textContent = 'Health Log';
-        deleteBtn.style.display = 'inline-block';
-        loadJournalIntoPanel(existingEntry);
-        editingJournalDate = dateKey;
-    } else {
-        title.textContent = 'Health Log';
-        deleteBtn.style.display = 'none';
-        clearJournalForm();
-        editingJournalDate = null;
-    }
+    // Setup emoji buttons when panel opens
+    setTimeout(setupEmojiButtons, 100);
     
     refreshEntriesList();
-    updateQuickStats();
 }
 
 function closeJournalPanel() {
@@ -124,37 +147,34 @@ function closeJournalPanel() {
     });
     
     selectedDate = null;
-    editingJournalDate = null;
 }
 
 function setCurrentTime() {
     const now = new Date();
     const timeString = now.toTimeString().slice(0, 5);
-    document.getElementById('entryTime').value = timeString;
-}
-
-function selectCategory(emoji, categoryName) {
-    selectedCategory = `${emoji} ${categoryName}`;
-    
-    document.querySelectorAll('.category-tag').forEach(tag => {
-        tag.classList.remove('selected');
-    });
-    event.target.classList.add('selected');
-    
-    document.getElementById('customCategory').value = '';
+    const timeInput = document.getElementById('entryTime');
+    if (timeInput) {
+        timeInput.value = timeString;
+    }
 }
 
 function addLogEntry() {
-    const time = document.getElementById('entryTime').value;
-    const details = document.getElementById('entryDetails').value.trim();
-    const customCategory = document.getElementById('customCategory').value.trim();
+    const timeInput = document.getElementById('entryTime');
+    const noteInput = document.getElementById('noteInput');
     
-    if (!time || !details) {
-        alert('Please enter both time and details for the log entry');
+    if (!timeInput || !noteInput || !selectedDate) {
+        console.warn('Required elements not found or no date selected');
         return;
     }
     
-    let category = customCategory || selectedCategory || '📝 Note';
+    const time = timeInput.value;
+    const note = noteInput.value.trim();
+    
+    if (!time || !note) {
+        alert('Please enter both time and note');
+        return;
+    }
+    
     const dateKey = formatDateKey(selectedDate);
     
     if (!journalEntries[dateKey]) {
@@ -170,44 +190,47 @@ function addLogEntry() {
     const logEntry = {
         id: Date.now(),
         time: time,
-        category: category,
-        details: details,
+        category: selectedEmoji,
+        details: note,
         timestamp: new Date().toLocaleString()
     };
     
     journalEntries[dateKey].logEntries.push(logEntry);
     
+    // Sort entries by time
+    journalEntries[dateKey].logEntries.sort((a, b) => a.time.localeCompare(b.time));
+    
     saveJournalEntries();
     renderCalendar();
     refreshEntriesList();
-    updateQuickStats();
     
-    document.getElementById('entryTime').value = '';
-    document.getElementById('entryDetails').value = '';
-    document.getElementById('customCategory').value = '';
-    document.querySelectorAll('.category-tag').forEach(tag => {
-        tag.classList.remove('selected');
-    });
-    selectedCategory = '';
+    // Clear form
+    timeInput.value = '';
+    noteInput.value = '';
     
-    const addBtn = event.target;
-    const originalText = addBtn.textContent;
-    addBtn.textContent = 'Added ✓';
-    addBtn.style.background = '#4CAF50';
-    
-    setTimeout(() => {
-        addBtn.textContent = originalText;
-        addBtn.style.background = '';
-    }, 1500);
+    // Success feedback
+    const addBtn = document.querySelector('.add-btn');
+    if (addBtn) {
+        const originalText = addBtn.textContent;
+        addBtn.textContent = 'Added ✓';
+        addBtn.style.background = '#28a745';
+        
+        setTimeout(() => {
+            addBtn.textContent = originalText;
+            addBtn.style.background = '';
+        }, 1500);
+    }
 }
 
 function refreshEntriesList() {
     const entriesList = document.getElementById('entriesList');
+    if (!entriesList || !selectedDate) return;
+    
     const dateKey = formatDateKey(selectedDate);
     const dayData = journalEntries[dateKey];
     
     if (!dayData || !dayData.logEntries || dayData.logEntries.length === 0) {
-        entriesList.innerHTML = '<p class="no-entries-message">No entries for this day yet.</p>';
+        entriesList.innerHTML = '<div class="empty-state">Start logging your day by selecting an emoji, time, and adding a note above.</div>';
         return;
     }
     
@@ -215,25 +238,14 @@ function refreshEntriesList() {
         return a.time.localeCompare(b.time);
     });
     
-    entriesList.innerHTML = '';
-    
-    sortedEntries.forEach(entry => {
-        const entryDiv = document.createElement('div');
-        entryDiv.className = 'log-entry';
-        
-        entryDiv.innerHTML = `
-            <div class="log-entry-header">
-                <span class="log-entry-time">${entry.time}</span>
-                <span class="log-entry-category">${entry.category}</span>
-            </div>
-            <div class="log-entry-details">${entry.details}</div>
-            <div class="log-entry-actions">
-                <button class="log-entry-btn delete" onclick="deleteLogEntry(${entry.id})">Delete</button>
-            </div>
-        `;
-        
-        entriesList.appendChild(entryDiv);
-    });
+    entriesList.innerHTML = sortedEntries.map(entry => `
+        <div class="log-entry">
+            <div class="entry-emoji">${entry.category}</div>
+            <div class="entry-time">${entry.time}</div>
+            <div class="entry-text">${entry.details}</div>
+            <button class="entry-delete" onclick="deleteLogEntry(${entry.id})" title="Delete entry">×</button>
+        </div>
+    `).join('');
 }
 
 function deleteLogEntry(entryId) {
@@ -247,101 +259,6 @@ function deleteLogEntry(entryId) {
         saveJournalEntries();
         renderCalendar();
         refreshEntriesList();
-        updateQuickStats();
-    }
-}
-
-function updateQuickStats() {
-    const quickStats = document.getElementById('quickStats');
-    const dateKey = formatDateKey(selectedDate);
-    const dayData = journalEntries[dateKey];
-    
-    if (!dayData || !dayData.logEntries || dayData.logEntries.length === 0) {
-        quickStats.innerHTML = '<span class="stat-item">No entries today</span>';
-        return;
-    }
-    
-    const categoryCount = {};
-    dayData.logEntries.forEach(entry => {
-        const category = entry.category;
-        categoryCount[category] = (categoryCount[category] || 0) + 1;
-    });
-    
-    quickStats.innerHTML = '';
-    Object.entries(categoryCount).forEach(([category, count]) => {
-        const statItem = document.createElement('span');
-        statItem.className = 'stat-item';
-        statItem.textContent = `${category}: ${count}`;
-        quickStats.appendChild(statItem);
-    });
-}
-
-function loadJournalIntoPanel(entry) {
-    document.getElementById('dailyNotes').value = entry.dailyNotes || '';
-    refreshEntriesList();
-    updateQuickStats();
-}
-
-function clearJournalForm() {
-    document.getElementById('entryTime').value = '';
-    document.getElementById('entryDetails').value = '';
-    document.getElementById('customCategory').value = '';
-    document.getElementById('dailyNotes').value = '';
-    
-    document.querySelectorAll('.category-tag').forEach(tag => {
-        tag.classList.remove('selected');
-    });
-    selectedCategory = '';
-    
-    refreshEntriesList();
-    updateQuickStats();
-}
-
-async function saveJournalEntry() {
-    const dailyNotes = document.getElementById('dailyNotes').value.trim();
-    const dateKey = formatDateKey(selectedDate);
-    
-    if (!journalEntries[dateKey]) {
-        journalEntries[dateKey] = {
-            date: selectedDate.toISOString(),
-            logEntries: [],
-            dailyNotes: '',
-            timestamp: new Date().toLocaleString(),
-            lastModified: new Date().toISOString()
-        };
-    }
-    
-    journalEntries[dateKey].dailyNotes = dailyNotes;
-    journalEntries[dateKey].lastModified = new Date().toISOString();
-    
-    await saveJournalEntries();
-    renderCalendar();
-    
-    document.getElementById('journalPanelTitle').textContent = 'Health Log';
-    document.getElementById('deleteJournalBtn').style.display = 'inline-block';
-    editingJournalDate = dateKey;
-    
-    const saveBtn = document.querySelector('.journal-actions .btn-primary');
-    const originalText = saveBtn.textContent;
-    saveBtn.style.background = '#4CAF50';
-    saveBtn.textContent = 'Saved ✓';
-    
-    setTimeout(() => {
-        saveBtn.textContent = originalText;
-        saveBtn.style.background = '';
-    }, 1500);
-}
-
-async function deleteJournalEntry() {
-    if (!selectedDate) return;
-    
-    if (confirm('Are you sure you want to delete ALL entries for this day? This cannot be undone.')) {
-        const dateKey = formatDateKey(selectedDate);
-        delete journalEntries[dateKey];
-        
-        await saveJournalEntries();
-        renderCalendar();
-        closeJournalPanel();
     }
 }
 
@@ -460,8 +377,7 @@ function renderCalendar() {
                 const categoryEmojis = new Set();
                 journal.logEntries.forEach(entry => {
                     if (entry.category) {
-                        const emoji = entry.category.split(' ')[0];
-                        categoryEmojis.add(emoji);
+                        categoryEmojis.add(entry.category);
                     }
                 });
                 
