@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', function() {
             renderCalendar();
             setupEventListeners();
             setupEmojiButtons();
+            setupWindowDragging(); // Add window dragging setup
             
             setTimeout(() => {
                 console.log('=== INITIALIZATION COMPLETE ===');
@@ -27,6 +28,128 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
+
+// Window dragging functionality
+function setupWindowDragging() {
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+    
+    // Get the main app container
+    const appContainer = document.querySelector('.app-container');
+    if (!appContainer) return;
+    
+    // Add dragging capability to the entire app
+    appContainer.addEventListener('mousedown', (e) => {
+        // Don't start dragging if clicking on interactive elements
+        const tagName = e.target.tagName.toLowerCase();
+        const isInteractive = [
+            'button', 'input', 'textarea', 'select', 'a', 'label'
+        ].includes(tagName);
+        
+        const isInJournalPanel = e.target.closest('.journal-panel');
+        const isInCalendarGrid = e.target.closest('.calendar-grid');
+        const isButton = e.target.closest('button') || e.target.classList.contains('day');
+        const isInput = e.target.closest('input, textarea, select');
+        
+        // Allow dragging from most areas except interactive elements
+        if (isInteractive || isButton || isInput) {
+            return;
+        }
+        
+        // Special case: allow dragging from journal header area
+        const isJournalHeader = e.target.closest('.journal-header');
+        const isCalendarHeader = e.target.closest('.header');
+        
+        // Only allow dragging from headers, empty spaces, or non-interactive areas
+        if (isInJournalPanel && !isJournalHeader) {
+            return;
+        }
+        
+        if (isInCalendarGrid) {
+            return;
+        }
+        
+        isDragging = true;
+        startX = e.screenX;
+        startY = e.screenY;
+        
+        // Change cursor to indicate dragging
+        document.body.style.cursor = 'grabbing';
+        document.body.style.userSelect = 'none';
+        
+        // Notify main process
+        if (window.electronAPI) {
+            window.electronAPI.startWindowDrag(e.screenX, e.screenY);
+        }
+        
+        e.preventDefault();
+    });
+    
+    // Handle mouse move for dragging
+    document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        
+        // Notify main process of mouse movement
+        if (window.electronAPI) {
+            window.electronAPI.moveWindow(e.screenX, e.screenY);
+        }
+        
+        e.preventDefault();
+    });
+    
+    // Handle mouse up to end dragging
+    document.addEventListener('mouseup', (e) => {
+        if (!isDragging) return;
+        
+        isDragging = false;
+        
+        // Reset cursor and selection
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        
+        // Notify main process
+        if (window.electronAPI) {
+            window.electronAPI.endWindowDrag();
+        }
+    });
+    
+    // Handle mouse leave to end dragging if mouse leaves window
+    document.addEventListener('mouseleave', () => {
+        if (isDragging) {
+            isDragging = false;
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+            
+            if (window.electronAPI) {
+                window.electronAPI.endWindowDrag();
+            }
+        }
+    });
+    
+    // Add visual feedback for draggable areas
+    const draggableAreas = [
+        '.header',
+        '.journal-header'
+    ];
+    
+    draggableAreas.forEach(selector => {
+        const elements = document.querySelectorAll(selector);
+        elements.forEach(element => {
+            element.addEventListener('mouseenter', () => {
+                if (!isDragging) {
+                    element.style.cursor = 'grab';
+                }
+            });
+            
+            element.addEventListener('mouseleave', () => {
+                if (!isDragging) {
+                    element.style.cursor = '';
+                }
+            });
+        });
+    });
+}
 
 async function loadCustomEmojis() {
     try {

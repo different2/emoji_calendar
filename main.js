@@ -24,7 +24,10 @@ function createWindow() {
     },
     titleBarStyle: 'hiddenInset', // Mac-style title bar
     icon: path.join(__dirname, 'assets', 'icon.png'),
-    show: false // Don't show until ready
+    show: false, // Don't show until ready
+    frame: true, // Keep the frame for proper window controls
+    movable: true, // Explicitly enable window movement
+    resizable: true // Keep resizable
   });
 
   // Load the app
@@ -47,6 +50,54 @@ function createWindow() {
 
   // Set up the menu
   createMenu();
+
+  // Enable window dragging from renderer process
+  setupWindowDragging();
+}
+
+function setupWindowDragging() {
+  // Handle drag start from renderer
+  ipcMain.on('window-drag-start', (event, { startX, startY }) => {
+    if (!mainWindow) return;
+    
+    // Get current window position
+    const [windowX, windowY] = mainWindow.getPosition();
+    
+    // Calculate offset from mouse to window corner
+    const offsetX = startX;
+    const offsetY = startY;
+    
+    // Store the drag state
+    mainWindow.dragState = {
+      isDragging: true,
+      offsetX,
+      offsetY,
+      startWindowX: windowX,
+      startWindowY: windowY
+    };
+  });
+
+  // Handle drag move from renderer
+  ipcMain.on('window-drag-move', (event, { clientX, clientY }) => {
+    if (!mainWindow || !mainWindow.dragState || !mainWindow.dragState.isDragging) return;
+    
+    const { offsetX, offsetY } = mainWindow.dragState;
+    
+    // Calculate new window position
+    const newX = clientX - offsetX;
+    const newY = clientY - offsetY;
+    
+    // Set window position
+    mainWindow.setPosition(Math.round(newX), Math.round(newY));
+  });
+
+  // Handle drag end from renderer
+  ipcMain.on('window-drag-end', () => {
+    if (!mainWindow) return;
+    
+    // Clear drag state
+    mainWindow.dragState = null;
+  });
 }
 
 function createMenu() {

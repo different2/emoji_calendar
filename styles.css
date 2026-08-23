@@ -19,6 +19,17 @@ body {
     max-width: 100%;
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(10px);
+    position: relative;
+}
+
+/* Dragging states */
+.app-container.dragging {
+    cursor: grabbing !important;
+    user-select: none !important;
+}
+
+.app-container * {
+    transition: cursor 0.1s ease;
 }
 
 .calendar-section {
@@ -27,6 +38,7 @@ body {
     flex-direction: column;
     min-width: 600px;
     border-right: 1px solid #e0e0e0;
+    position: relative;
 }
 
 /* Updated Journal Panel - Simplified Design */
@@ -68,6 +80,17 @@ body {
     border-bottom: 2px solid #f0f0f0;
     position: relative;
     flex-shrink: 0;
+    /* Dragging cursor for header */
+    cursor: grab;
+    transition: all 0.2s ease;
+}
+
+.journal-header:hover {
+    background: linear-gradient(135deg, #fff0f0 0%, #ffe0e0 100%);
+}
+
+.journal-header:active {
+    cursor: grabbing;
 }
 
 .header-top {
@@ -83,6 +106,7 @@ body {
     font-weight: 300;
     letter-spacing: -0.5px;
     margin: 0;
+    user-select: none; /* Prevent text selection while dragging */
 }
 
 .date-display {
@@ -93,6 +117,7 @@ body {
     font-size: 14px;
     color: #555;
     text-align: center;
+    user-select: none;
 }
 
 .journal-header .close-panel {
@@ -111,6 +136,7 @@ body {
     align-items: center;
     justify-content: center;
     transition: all 0.2s ease;
+    z-index: 10; /* Ensure it's above dragging layer */
 }
 
 .journal-header .close-panel:hover {
@@ -485,12 +511,25 @@ body {
     padding: 20px 30px;
     text-align: center;
     flex-shrink: 0;
+    /* Dragging cursor for header */
+    cursor: grab;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.header:hover {
+    background: linear-gradient(135deg, #3f9cfe 0%, #00e2fe 100%);
+}
+
+.header:active {
+    cursor: grabbing;
 }
 
 .header h1 {
     font-size: 2.2em;
     margin-bottom: 15px;
     font-weight: 300;
+    user-select: none;
 }
 
 .nav {
@@ -527,6 +566,7 @@ body {
     font-size: 1.6em;
     font-weight: 500;
     margin: 0 10px;
+    user-select: none;
 }
 
 .calendar-grid {
@@ -548,6 +588,7 @@ body {
     font-weight: 600;
     color: #666;
     font-size: 14px;
+    user-select: none;
 }
 
 .day {
@@ -586,6 +627,7 @@ body {
     font-weight: 600;
     margin-bottom: 8px;
     font-size: 16px;
+    user-select: none;
 }
 
 .day-events {
@@ -633,6 +675,60 @@ body {
 .event-emoji,
 .event-title {
     display: none;
+}
+
+/* Dragging feedback styles */
+.draggable-hint {
+    position: relative;
+}
+
+.draggable-hint::after {
+    content: "⋮⋮";
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: rgba(0, 0, 0, 0.2);
+    font-weight: bold;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.draggable-hint:hover::after {
+    opacity: 0.5;
+}
+
+/* Enhanced visual feedback for dragging areas */
+.header,
+.journal-header {
+    position: relative;
+}
+
+.header::before,
+.journal-header::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.1);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: none;
+}
+
+.header:hover::before,
+.journal-header:hover::before {
+    opacity: 1;
+}
+
+/* Prevent text selection during dragging */
+.no-select {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
 }
 
 /* Modal styles (if needed for future features) */

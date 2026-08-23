@@ -11,6 +11,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   exportCalendarToFile: (filePath, events) => ipcRenderer.invoke('export-calendar-to-file', filePath, events),
   importCalendarFromFile: (filePath) => ipcRenderer.invoke('import-calendar-from-file', filePath),
   
+  // Window dragging functionality
+  startWindowDrag: (startX, startY) => ipcRenderer.send('window-drag-start', { startX, startY }),
+  moveWindow: (clientX, clientY) => ipcRenderer.send('window-drag-move', { clientX, clientY }),
+  endWindowDrag: () => ipcRenderer.send('window-drag-end'),
+  
   // Menu event listeners
   onNewEvent: (callback) => ipcRenderer.on('new-event', callback),
   onPrevMonth: (callback) => ipcRenderer.on('prev-month', callback),
